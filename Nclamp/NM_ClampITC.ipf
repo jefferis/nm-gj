@@ -282,7 +282,9 @@ Function ITCAcqPrecise(mode, savewhen, WaveLength, NumStimWaves, InterStimTime, 
 			Execute aboard + "Seq \"" + ITCoutList + "\",\"" + ITCinList + "\""
 			break
 		case "ITC18":
-			Execute aboard + "Seq \"" + ITCoutList + "\",\"" + ITCinList + "\",1"
+		// GJ 2005-09-22 Removed the trailing 1 - think the new API doesn't like this!
+			Execute aboard + "Seq \"" + ITCoutList + "\",\"" + ITCinList + "\""
+//			Execute aboard + "Seq \"" + ITCoutList + "\",\"" + ITCinList + "\",1"
 			break
 	endswitch
 	
@@ -649,7 +651,9 @@ Function ITCAcqLong(mode, savewhen, WaveLength, NumStimWaves, InterStimTime, Num
 			Execute aboard + "Seq \"" + ITCoutList + "\",\"" + ITCinList + "\""
 			break
 		case "ITC18":
-			Execute aboard + "Seq \"" + ITCoutList + "\",\"" + ITCinList + "\",1"
+		// GJ 2005-09-22
+			Execute aboard + "Seq \"" + ITCoutList + "\",\"" + ITCinList + "\""
+//			Execute aboard + "Seq \"" + ITCoutList + "\",\"" + ITCinList + "\",1"
 			break
 	endswitch
 	
