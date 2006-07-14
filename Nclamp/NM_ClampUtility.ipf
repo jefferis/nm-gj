@@ -657,8 +657,6 @@ Function TGainAM2400(telValue)
 	// >=0.75V -> 2 etc
 	
 	// GJ: 2006-07-14
-	// Note that I have corrected an apparent typo from 7.3 to 8.3 V in manual
-	// returns a value in mV/pA in V-Clamp OR mV/mV in I-Clamp
 	switch(telRound)
 		case 0:
 			return 0.01
@@ -692,9 +690,10 @@ Function TGainAM2400(telValue)
 			return 500
 		case 15:
 			return 1000
-		case 16:
-			return 2000
+		// GJ: Note jump - this was confimed as correct by AM systems
 		case 17:
+			return 2000
+		case 18:
 			return 5000
 		default:
 			Print "\rAM2400 Telegraph Gain not recognized : " + num2str(telValue)
