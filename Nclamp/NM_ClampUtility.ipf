@@ -181,12 +181,12 @@ Function TModeCheck(mode)
 	endif
 	
 	telValue = ClampReadManager(StrVarOrDefault(cdf+"AcqBoard", ""), driver, chan, 1, 5)
-	tmode = TModeAxo200B(telValue)
+	
 	
 	strswitch(instr)
 	
 		case "Axopatch200B":
-		
+			tmode = TModeAxo200B(telValue)
 			if (StringMatch(amode, "I-clamp") == 1)
 				if (StringMatch(tmode[0,0], "I") == 1)
 					tmode = "I-clamp"
@@ -199,11 +199,18 @@ Function TModeCheck(mode)
 			endif
 			
 			break
-			
+		case "AM2400":
+			tmode = TModeAM2400(telValue)
+			if (StringMatch(amode, tmode) == 0)
+				ClampError("Amplifier mode should be \'" + amode + "\' not \'" + tmode +"\'")
+				return -1
+			endif
+
+			break
+
 	endswitch
 	
 	String /G TModeStr = amode
-	
 End // TModeCheck
 
 //****************************************************************
@@ -219,9 +226,9 @@ Function TModeCheckConfig()
 	
 	String mlist = "V-clamp;I-clamp;I-clamp Normal;I-clamp Fast;"
 	
-	Prompt chan, "select ACD input that reads telegraph mode:", popup "0;1;2;3;4;5;6;7;"
+	Prompt chan, "select ADC input that reads telegraph mode:", popup "0;1;2;3;4;5;6;7;"
 	Prompt amode, "choose mode required for this protocol:", popup mlist
-	Prompt instr, "telegraphed instrument:", popup "Axopatch200B;"
+	Prompt instr, "telegraphed instrument:", popup "Axopatch200B;AM2400"
 	
 	DoPrompt "Check Telegraph Mode", chan, amode, instr
 	
@@ -579,8 +586,18 @@ Function MyTelegraphGain(tgain, defaultGain)
 	strswitch(instr)
 		case "Axopatch200B":
 			alpha = TGainAxo200B(tgain)
+			// GJ: from the Axopatch manual I had the impression that the gain telegraph
+			// changes if beta changes (between 1 or 100), so this seems a bit irrelevant
 			beta = 1 // whole cell
 			scale = 0.001 * beta // V / mV
+			break
+		// Added by GJ 2006-07-14
+		case "AM2400":
+			alpha = TGainAM2400(tgain)
+			//GJ: Does this mean that what is going to come out is a scale value in 
+			// V / pA or V/mV?
+			// Does this in turn mean that mV and pA are the natural units of nclamp/neuromatic?
+			scale = 0.001 // V / mV 
 			break
 	endswitch
 	
@@ -591,6 +608,101 @@ Function MyTelegraphGain(tgain, defaultGain)
 	endif
 	
 End // MyTelegraphGain
+
+
+Function /S TModeAM2400(telValue)
+	Variable telValue
+	Variable telRound = round(10 * telValue / 5)
+	// >=0.25V -> 1
+	// >=0.75V -> 2 etc
+
+	// GJ 2006-07-14
+	// (from AM2400 manual)
+	//	Vtest 0V 
+	//Vcomp 0.8V 
+	//Vclamp 1.8V 
+	//I=0 2.8V 
+	//Iclamp 3.8V 
+	//Iresist 4.8V 
+	//Ifollow 5.8V 
+
+	
+	switch(telRound)
+		case 0:
+			return "V-Test"
+		case 2:
+			return "V-Comp"  // ie oscillating test pulse
+		case 4:
+			return "V-Clamp"
+		case 6:
+			return "I = 0"
+		case 8:
+			return "I-Clamp"
+		case 10:
+			return "I-Resist"
+		case 12:
+			return "I-Follow"
+		default:
+			Print "\rAM2400 Telegraph Mode not recognized : " + num2str(telValue)
+	endswitch
+	
+	return ""
+
+End // TModeAM2400
+
+Function TGainAM2400(telValue)
+	Variable telValue	
+	Variable telRound = round(10 * telValue / 5)
+	// >=0.25V -> 1
+	// >=0.75V -> 2 etc
+	
+	// GJ: 2006-07-14
+	// Note that I have corrected an apparent typo from 7.3 to 8.3 V in manual
+	// returns a value in mV/pA in V-Clamp OR mV/mV in I-Clamp
+	switch(telRound)
+		case 0:
+			return 0.01
+		case 1:
+			return 0.02
+		case 2:
+			return 0.05
+		case 3:
+			return 0.1
+		case 4:
+			return 0.2
+		case 5:
+			return 0.5
+		case 6:
+			return 1
+		case 7:
+			return 2
+		case 8:
+			return 5
+		case 9:
+			return 10
+		case 10:
+			return 20
+		case 11:
+			return 50
+		case 12:
+			return 100
+		case 13:
+			return 200
+		case 14:
+			return 500
+		case 15:
+			return 1000
+		case 16:
+			return 2000
+		case 17:
+			return 5000
+		default:
+			Print "\rAM2400 Telegraph Gain not recognized : " + num2str(telValue)
+	endswitch
+	
+	return -1
+
+End // TGainAM2400
 
 //****************************************************************
 //

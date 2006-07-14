@@ -1300,7 +1300,7 @@ Function ClampTgainConfig()
 	Prompt mode, " ", popup "edit existing config;add new config;"
 	Prompt gchan, "ADC input channel to read telegraph gain:"
 	Prompt achan, "ADC input channel to scale:"
-	Prompt instr, "telegraphed instrument:", popup "Axopatch200B;"
+	Prompt instr, "telegraphed instrument:", popup "Axopatch200B;AM2400"
 	Prompt on, " ", popup "off;on;"
 	
 	if (ItemsInList(tGainList) > 0)
