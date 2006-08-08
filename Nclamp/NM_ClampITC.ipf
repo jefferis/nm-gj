@@ -31,7 +31,8 @@ Function ITCconfig(aboard)
 	
 	String cdf = ClampDF()
 	
-	Execute /Z aboard + "Reset" // attemp to reset ITC board
+	// GJ according to Telly G.  Reset is not required
+	//Execute /Z aboard + "Reset" // attemp to reset ITC board
 
 	if (V_flag != 0)
 		ClampError("unrecognized board : " + aboard)
@@ -98,7 +99,8 @@ Function ITCacquire(mode, savewhen, WaveLength, NumStimWaves, InterStimTime, Num
 		return -1
 	endif
 	
-	Execute aboard + "Reset"
+	// GJ according to Telly G.  Reset is not required
+	//Execute aboard + "Reset"
 	Execute aboard + "WriteAvailable " + cdf + "Avail2Write"
 	
 	Variable pnts = ceil((WaveLength + InterStimTime) * ins / SampleInterval)
@@ -267,8 +269,9 @@ Function ITCAcqPrecise(mode, savewhen, WaveLength, NumStimWaves, InterStimTime, 
 		Duplicate /O savetemp $(cdf+"ITCinWave")
 		flip = 1 
 	endif
-	
-	Execute aboard + "Reset"
+
+	// GJ according to Telly G.  Reset is not required
+	// Execute aboard + "Reset"
 	
 	for (icnt = 0; icnt < ItemsInList(ADClist[0]); icnt += 1)
 		item = StringFromList(icnt, ADClist[0])
@@ -637,7 +640,8 @@ Function ITCAcqLong(mode, savewhen, WaveLength, NumStimWaves, InterStimTime, Num
 	
 	// start acquisition
 	
-	Execute aboard + "Reset"
+	// GJ according to Telly G.  Reset is not required
+	// Execute aboard + "Reset"
 	
 	for (icnt = 0; icnt < ItemsInList(ADClist[0]); icnt += 1)
 		item = StringFromList(icnt, ADClist[0])
@@ -804,7 +808,8 @@ Function ITCprescan()
 	
 	period = ITCperiod(0.01, 1)
 	
-	Execute aboard + "Reset"
+	// GJ according to Telly G.  Reset is not required
+	// Execute aboard + "Reset"
 	
 	for (icnt = 0; icnt < ItemsInList(preADClist[0]); icnt += 1)
 
@@ -884,7 +889,8 @@ Function ITCread(chan, gain, npnts)
 	
 	Make /O/N=(npnts+6) CT_ITCread = 0
 	
-	Execute aboard + "Reset"
+	// GJ according to Telly G.  Reset is not required
+	// Execute aboard + "Reset"
 	
 	Execute aboard + "SetADCRange " + chanstr + "," + ITCrangeStr(gain)
 	
