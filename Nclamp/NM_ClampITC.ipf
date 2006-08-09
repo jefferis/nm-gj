@@ -74,8 +74,6 @@ Function ITCacquire(mode, savewhen, WaveLength, NumStimWaves, InterStimTime, Num
 	Variable savewhen // (0) never (1) after (2) while
 	Variable WaveLength, NumStimWaves, InterStimTime, NumStimReps, InterRepTime
 	
-	DoAlert 0,"ITCacquire"
-	
 	String cdf = ClampDF(), sdf = StimDF()
 	
 	String aboard = StrVarOrDefault(cdf+"AcqBoard", "")
