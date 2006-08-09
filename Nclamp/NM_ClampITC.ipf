@@ -32,7 +32,9 @@ Function ITCconfig(aboard)
 	String cdf = ClampDF()
 	
 	// GJ according to Telly G.  Reset is not required
-	//Execute /Z aboard + "Reset" // attemp to reset ITC board
+	// However this reset is only called when checking the board so I guess it can stanf
+	// It would probably be fine to substitute another quicker function call
+	Execute /Z aboard + "Reset" // attemp to reset ITC board
 
 	if (V_flag != 0)
 		ClampError("unrecognized board : " + aboard)
@@ -71,6 +73,8 @@ Function ITCacquire(mode, savewhen, WaveLength, NumStimWaves, InterStimTime, Num
 	Variable mode // (0) preview (1) record (-1) test timers
 	Variable savewhen // (0) never (1) after (2) while
 	Variable WaveLength, NumStimWaves, InterStimTime, NumStimReps, InterRepTime
+	
+	DoAlert 0,"ITCacquire"
 	
 	String cdf = ClampDF(), sdf = StimDF()
 	
