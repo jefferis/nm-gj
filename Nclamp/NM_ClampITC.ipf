@@ -1,15 +1,15 @@
 #pragma rtGlobals = 1
-#pragma IgorVersion = 4
-#pragma version = 1.86
+#pragma IgorVersion = 5
+#pragma version = 1.91
 
 //****************************************************************
 //****************************************************************
 //****************************************************************
 //
 //	Clamp ITC Acquisition Functions (ITC16/ITC18)
-//	To be run with NeuroMatic, v1.86
+//	To be run with NeuroMatic, v1.91
 //	NeuroMatic.ThinkRandom.com
-//	Code for WaveMetrics Igor Pro 5
+//	Code for WaveMetrics Igor Pro
 //
 //	By Jason Rothman (Jason@ThinkRandom.com)
 //
@@ -20,7 +20,7 @@
 //	"Grid Enabled Modeling Tools and Databases for NeuroInformatics"
 //
 //	Began 1 July 2003
-//	Last modified 02 Dec 2004
+//	Last modified 26 April 2005
 //
 //****************************************************************
 //****************************************************************
@@ -78,11 +78,12 @@ Function ITCacquire(mode, savewhen, WaveLength, NumStimWaves, InterStimTime, Num
 	Variable savewhen // (0) never (1) after (2) while
 	Variable WaveLength, NumStimWaves, InterStimTime, NumStimReps, InterRepTime
 	
+	Variable sizeFIFO = 256000
+	
 	String cdf = ClampDF(), sdf = StimDF()
 	
 	String aboard = StrVarOrDefault(cdf+"AcqBoard", "")
 	
-	String InterStimFxnList = StrVarOrDefault(sdf+"InterStimFxnList", "")
 	Variable acqMode = NumVarOrDefault(sdf+"AcqMode", 0)
 	Variable SampleInterval = NumVarOrDefault(sdf+"SampleInterval", 0)
 	
@@ -107,14 +108,14 @@ Function ITCacquire(mode, savewhen, WaveLength, NumStimWaves, InterStimTime, Num
 	
 	// GJ according to Telly G.  Reset is not required
 	//Execute aboard + "Reset"
-	Execute aboard + "WriteAvailable " + cdf + "Avail2Write"
+	//Execute aboard + "WriteAvailable " + cdf + "Avail2Write"
+	//sizeFIFO = Avail2Write[0]
 	
 	Variable pnts = ceil((WaveLength + InterStimTime) * ins / SampleInterval)
-	// GJ
-	print pnts
+	
 	if (acqMode == 0) // test to see if short mode is possible
 	
-		if (pnts > Avail2Write[0]/2) // must be able to load at least two for fast episodic
+		if (pnts > sizeFIFO/2) // must be able to load at least two for fast episodic
 			ITCError("ITC Config Error", "epic precise mode not feasible. Please use episodic mode instead.")
 			return -1
 		endif
@@ -123,14 +124,17 @@ Function ITCacquire(mode, savewhen, WaveLength, NumStimWaves, InterStimTime, Num
 	
 	SetNMvar(cdf+"AcqMode", acqMode) // set temporary variable in ClampDF
 	
+	SetNMvar(cdf+"InterStimTime", InterStimTime)
+	SetNMvar(cdf+"InterRepTime", InterRepTime)
+	
 	switch(acqMode)
 		case 0: // episodic
 		case 1: // continuous
-			ITCAcqPrecise(mode, savewhen, WaveLength, NumStimWaves, InterStimTime, NumStimReps, InterRepTime)
+			ITCAcqPrecise(mode, savewhen)
 			break
 		case 2: // episodic precise
 		case 3: // triggered
-			ITCAcqLong(mode, savewhen, WaveLength, NumStimWaves, InterStimTime, NumStimReps, InterRepTime)
+			ITCAcqLong(mode, savewhen)
 			break
 	endswitch 
 	
@@ -140,10 +144,9 @@ End // ITCacquire
 //****************************************************************
 //****************************************************************
 
-Function ITCAcqPrecise(mode, savewhen, WaveLength, NumStimWaves, InterStimTime, NumStimReps, InterRepTime)
+Function ITCAcqPrecise(mode, savewhen)
 	Variable mode // (0) preview (1) record (-1) test timers
 	Variable savewhen // (0) never (1) after (2) while
-	Variable WaveLength, NumStimWaves, InterStimTime, NumStimReps, InterRepTime
 
 	Variable nwaves, rcnt, ccnt, wcnt, icnt, period, pipe
 	Variable stimcnt, stimtotal, sampcnt, samptotal, savecnt
@@ -160,6 +163,12 @@ Function ITCAcqPrecise(mode, savewhen, WaveLength, NumStimWaves, InterStimTime, 
 	NVAR CurrentWave
 	
 	String aboard = StrVarOrDefault(cdf+"AcqBoard", "")
+	
+	Variable NumStimWaves = NumVarOrDefault(sdf+"NumStimWaves", 0)
+	Variable NumStimReps = NumVarOrDefault(sdf+"NumStimReps", 0)
+	
+	NVAR InterStimTime = $(cdf+"InterStimTime")
+	NVAR InterRepTime = $(cdf+"InterRepTime")
 	
 	Variable SamplesPerWave = NumVarOrDefault(sdf+"SamplesPerWave", 0)
 	Variable SampleInterval = NumVarOrDefault(sdf+"SampleInterval", 0)
@@ -529,19 +538,18 @@ End // ITCAcqPrecise
 //****************************************************************
 //****************************************************************
 
-Function ITCAcqLong(mode, savewhen, WaveLength, NumStimWaves, InterStimTime, NumStimReps, InterRepTime)
+Function ITCAcqLong(mode, savewhen)
 	Variable mode // (0) preview (1) record (-1) test timers
 	Variable savewhen // (0) never (1) after (2) while
-	Variable WaveLength, NumStimWaves, InterStimTime, NumStimReps, InterRepTime
-
+	
 	Variable nwaves, rcnt, ccnt, wcnt, icnt, period, pipe
 	Variable stimcnt, stimtotal, sampcnt, samptotal, savecnt
-	Variable outpnts, inpnts, npnts, scale, config
+	Variable outpnts, inpnts, npnts, wpnts, scale, config
 	Variable chan, gain, tgain, cancel, outs, ins
 	Variable flip, flipread, flipsave
 	Variable firstread, firstwrite, firstsave, acqflag = 2
 	
-	String wname, dname, inName, outName, alist
+	String wname, dname, inName, outName, alist, dlist
 	String item, chanstr, seqstr, ITCoutList, ITCinList
 	
 	String cdf = ClampDF(), sdf = StimDF()
@@ -549,6 +557,12 @@ Function ITCAcqLong(mode, savewhen, WaveLength, NumStimWaves, InterStimTime, Num
 	NVAR CurrentWave
 	
 	String aboard = StrVarOrDefault(cdf+"AcqBoard", "")
+	
+	Variable NumStimWaves = NumVarOrDefault(sdf+"NumStimWaves", 0)
+	Variable NumStimReps = NumVarOrDefault(sdf+"NumStimReps", 0)
+	
+	NVAR InterStimTime = $(cdf+"InterStimTime")
+	NVAR InterRepTime = $(cdf+"InterRepTime")
 	
 	Variable SamplesPerWave = NumVarOrDefault(sdf+"SamplesPerWave", 0)
 	Variable SampleInterval = NumVarOrDefault(sdf+"SampleInterval", 0)
@@ -576,6 +590,7 @@ Function ITCAcqLong(mode, savewhen, WaveLength, NumStimWaves, InterStimTime, Num
 	
 	Wave ADCscale = $(sdf+"ADCscale")
 	Wave /T ADClist = $(cdf+"ADClist")
+	Wave /T DAClist = $(cdf+"DAClist")
 	
 	Variable tGainConfig = NumVarOrDefault(cdf+"TGainConfig",0)
 	
@@ -647,8 +662,7 @@ Function ITCAcqLong(mode, savewhen, WaveLength, NumStimWaves, InterStimTime, Num
 	
 	// start acquisition
 	
-	// GJ according to Telly G.  Reset is not required
-	// Execute aboard + "Reset"
+	//Execute aboard + "Reset"
 	
 	for (icnt = 0; icnt < ItemsInList(ADClist[0]); icnt += 1)
 		item = StringFromList(icnt, ADClist[0])
@@ -675,6 +689,13 @@ Function ITCAcqLong(mode, savewhen, WaveLength, NumStimWaves, InterStimTime, Num
 			outName = cdf + "ITCoutWave" + num2str(wcnt)
 			inName = cdf + "ITCinWave"+ num2str(wcnt)
 			alist = ADClist[wcnt]
+			dlist = DAClist[wcnt]
+			
+			wpnts = GetXStats("numpnts", dlist)
+			
+			if (numtype(wpnts) > 0)
+				continue
+			endif
 			
 			Wave wtemp = $inName
 				
@@ -721,7 +742,7 @@ Function ITCAcqLong(mode, savewhen, WaveLength, NumStimWaves, InterStimTime, Num
 				
 					Execute aboard + "stopacq"
 		
-					ITCmixWaves(inName, ins, alist, "", SamplesPerWave, 0, -1, pipe) // unmix waves, shift
+					ITCmixWaves(inName, ins, alist, "", wpnts, 0, -1, pipe) // unmix waves, shift
 					
 					for (ccnt = 0; ccnt < ItemsInList(alist); ccnt += 1) // save waves
 						
@@ -894,10 +915,11 @@ Function ITCread(chan, gain, npnts)
 	
 	Variable period = ITCperiod(0.01, 1)
 	
-	Make /O/N=(npnts+6) CT_ITCread = 0
+	Variable garbage = 15
 	
-	// GJ according to Telly G.  Reset is not required
-	// Execute aboard + "Reset"
+	Make /O/N=(npnts+garbage) CT_ITCread = 0
+	
+	//Execute aboard + "Reset"
 	
 	Execute aboard + "SetADCRange " + chanstr + "," + ITCrangeStr(gain)
 	
@@ -907,9 +929,7 @@ Function ITCread(chan, gain, npnts)
 			Execute aboard + "StartAcq " + num2str(period) + ", 2"
 			break
 		case "ITC18":
-			// GJ: removed another case of an inappropriate command string for ITC18 
-			// Execute aboard + "Seq \"0\",\"" + chanstr + "\",1"
-			Execute aboard + "Seq \"0\",\"" + chanstr + "\""
+			Execute aboard + "Seq \"0\",\"" + chanstr + "\",1"
 			Execute aboard + "StartAcq " + num2str(period) + ", 2, 0"
 			break
 	endswitch
@@ -922,7 +942,7 @@ Function ITCread(chan, gain, npnts)
 		
 	CT_ITCread /= (32768 / ITCrange(gain)) // convert to volts
 	
-	CT_ITCread[0,5] = Nan
+	CT_ITCread[0,garbage-1] = Nan
 	
 	WaveStats /Q CT_ITCread
 	
@@ -1087,7 +1107,7 @@ Function ITCupdateLists(NumStimWaves) // check input/output configurations and c
 						if (numtype(ADCtgain[config]) == 0)
 						
 							gain = 1 // full scale
-							mode = 5 // number of samples to read
+							mode = 10 // number of samples to read
 							wname = cdf + "CT_Tgain" + num2str(chan)
 							item = wname + "," + num2str(ADCtgain[config]) + "," + num2str(gain)+ "," + num2str(mode) + "," + num2str(-1)
 							wlist2 = AddListItem(item, wlist2, ";", inf) // save as pre-stim input
@@ -1251,7 +1271,7 @@ End // ITCextendList
 Function ITCmakeWaves(NumOuts, NumStimWaves, InterStimTime, NumStimReps, InterRepTime, AcqMode)
 	Variable NumOuts, NumStimWaves, InterStimTime, NumStimReps, InterRepTime, AcqMode
 	
-	Variable icnt, wcnt, stimN, repN, insertN, npnts, pipe
+	Variable icnt, wcnt, stimN, repN, insertN, npnts, pipe, error
 	String item, wname, wlist = "", tlist = ""
 	
 	String cdf = ClampDF(), sdf = StimDF()
@@ -1315,7 +1335,7 @@ Function ITCmakeWaves(NumOuts, NumStimWaves, InterStimTime, NumStimReps, InterRe
 			case 0: // episodic-fast
 		
 				if (insertN >= pipe)
-					ITCmixWaves(wname, NumOuts, wlist, tlist, SamplesPerWave, insertN, 1, pipe) // mix output waves, shift
+					error = ITCmixWaves(wname, NumOuts, wlist, tlist, SamplesPerWave, insertN, 1, pipe) // mix output waves, shift
 				else
 					ITCError("ITC Episodic Error", "inter-wave or inter-rep time too short. Try continuous acquisition.")
 					return -1
@@ -1324,15 +1344,23 @@ Function ITCmakeWaves(NumOuts, NumStimWaves, InterStimTime, NumStimReps, InterRe
 				break
 				
 			case 1: // continuous
-				ITCmixWaves(wname, NumOuts, wlist, tlist, SamplesPerWave, insertN, 1, 0) // mix output waves, no shift
+				error = ITCmixWaves(wname, NumOuts, wlist, tlist, SamplesPerWave, insertN, 1, 0) // mix output waves, no shift
 				break
 				
 			case 2: // episodic-slow
 			case 3: // triggered
-				ITCmixWaves(wname, NumOuts, wlist, tlist, SamplesPerWave, insertN, 1, pipe)
+				error = ITCmixWaves(wname, NumOuts, wlist, tlist, SamplesPerWave, insertN, 1, pipe)
 				break
 				
+			default:
+				error = -1
+				
 		endswitch
+		
+		if (error < 0)
+			ITCError("ITC Config Error", "mix wave error")
+			return -1
+		endif
 			
 		npnts = numpnts($wname) // number of points made for ITCoutWave
 		
@@ -1395,6 +1423,14 @@ Function ITCmixWaves(mixwname, nmix, wlist, tlist, npnts, ipnts, mixflag, pipede
 	String cdf = ClampDF()
 	
 	numTTL = ItemsInList(tlist)
+	
+	if (mixflag == 1)
+		npnts = GetXStats("numpnts", wlist)
+	endif
+	
+	if (numtype(npnts) > 0)
+		return -1 // waves of different length
+	endif
 	
 	if (mixflag == 1) // mix waves
 
@@ -1498,6 +1534,8 @@ Function ITCmixWaves(mixwname, nmix, wlist, tlist, npnts, ipnts, mixflag, pipede
 				continue
 			endif
 			
+			Redimension /N=(npnts) $wname
+			
 			Wave tempWave = $wname
 			
 			tempWave = 0
@@ -1513,6 +1551,8 @@ Function ITCmixWaves(mixwname, nmix, wlist, tlist, npnts, ipnts, mixflag, pipede
 		endfor
 	
 	endif
+	
+	return 0
 
 End // ITCmixWaves
 
@@ -1559,6 +1599,22 @@ Function /S ITCrangeStr(scale)
 	endswitch
 	
 End // ITCrangeStr
+
+//****************************************************************
+//****************************************************************
+//****************************************************************
+
+Function ITCSetDAC(chan, volts)
+	Variable chan
+	Variable volts
+	
+	String cdf = ClampDF(), sdf = StimDF()
+	
+	String aboard = StrVarOrDefault(cdf+"AcqBoard", "")
+	
+	Execute aboard + "SetDAC " + num2str(chan) + "," + num2str(volts)
+	
+End // ITCSetDAC
 
 //****************************************************************
 //****************************************************************
