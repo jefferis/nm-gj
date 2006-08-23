@@ -1,20 +1,20 @@
 #pragma rtGlobals = 1
-#pragma IgorVersion = 4
-#pragma version = 1.86
+#pragma IgorVersion = 5
+#pragma version = 1.91
 
 //****************************************************************
 //****************************************************************
 //****************************************************************
 //
 //	Pulse Generator Functions
-//	To be run with NeuroMatic, v1.86
+//	To be run with NeuroMatic, v1.91
 //	NeuroMatic.ThinkRandom.com
-//	Code for WaveMetrics Igor Pro 4
+//	Code for WaveMetrics Igor Pro
 //
 //	By Jason Rothman (Jason@ThinkRandom.com)
 //
 //	Began March 2001
-//	Last modified 13 Oct 2004
+//	Last modified 02 March 2006
 //
 //	Functions for creating/displaying "pulse" waves
 //
@@ -65,9 +65,12 @@ Function PulseGraphUpdate(df, wlist)
 	String wlist // wave list
 	
 	String gName = "PG_PulseGraph"
+	
+	Variable madeGraph = 0
 
 	if (WinType(gName) == 0)
 		PulseGraphMake()
+		madeGraph = 1
 	endif
 	
 	Variable icnt
@@ -88,6 +91,8 @@ Function PulseGraphUpdate(df, wlist)
 		GraphRainbow(gName) // set waves to raindow colors
 	
 	endif
+	
+	return madeGraph
 
 End // PulseGraphUpdate
 
@@ -387,49 +392,74 @@ End // PulseClear
 //****************************************************************
 //****************************************************************
 
-Function PulseTrain(df, wPrefix, wbeg, wend, winc, tbeg, tend, type, intvl, refrac, shape, amp, width, tau2)
+Function PulseTrain(df, wPrefix, wbgn, wend, winc, tbgn, tend, type, intvl, refrac, shape, amp, width, tau2, continuous, wName)
 	String df // data folder
 	String wPrefix // wave prefix
 
-	Variable wbeg, wend // wave number begin, end
+	Variable wbgn, wend // wave number begin, end
 	Variable winc // wave increment
-	Variable tbeg, tend // window begin/end time
-	Variable type // (1) fixed (2) random
+	Variable tbgn, tend // window begin/end time
+	Variable type // (1) fixed (2) random (3) from wave
 	Variable intvl // inter-pulse interval
 	Variable refrac // refractory period for random train
 	Variable shape // pulse shape
 	Variable amp // pulse amplitude
 	Variable width // pulse width or time constant
 	Variable tau2 // decay time constant for 2-exp
+	Variable continuous // if waves are to be treated as continuous (0) no (1) yes
 	
-	Variable onset, tlast, wcnt
+	String wName // wave name, for type 3
 	
-	if (type == 1)
-		tlast = tbeg - intvl
-		wend = wbeg
-	elseif (type == 2)
-		tlast = tbeg
-		winc = 0
+	Variable onset, tlast, wcnt, pcnt, hold, plimit = 99999
+	
+	if ((type == 3) && (WaveExists($wName) == 0))
+		return -1
 	endif
 	
-	for (wcnt = wbeg; wcnt <= wend; wcnt += 1)
+	if (type == 3)
+		Wave wtemp = $wName
+		plimit = numpnts(wtemp)
+	endif
 	
-		onset = 0; tlast = 0
+	for (wcnt = wbgn; wcnt <= wend; wcnt += 1)
+		
+		if (continuous == 0)
+			tlast = tbgn
+		elseif (wcnt == wbgn)
+			tlast = tbgn
+		else
+			tlast = 0
+		endif
 	
-		do
+		do // add pulses
 	
-			if (type == 1) // fixed intervals
-				onset = tlast + intvl
+			if (hold > 0)
+				onset = tlast + hold
+				hold = 0
+			elseif (type == 1) // fixed intervals
+				onset = tbgn + intvl * (pcnt + 1)
 			elseif (type == 2) // random intervals
 				onset = tlast - ln(abs(enoise(1))) * intvl
+			elseif (type == 3) // user wave of intervals
+				if (numtype(wtemp[pcnt]) == 0)
+					onset = tlast + wtemp[pcnt]
+				else
+					pcnt = plimit
+					onset = tend
+				endif
 			endif
 			
-			if ((onset >= tlast + refrac) && (onset < tend))
+			if (onset == tlast)
+				pcnt += 1
+			elseif ((onset > tlast + refrac) && (onset < tend))
 				PulseSave(df, wPrefix, -1, shape, wcnt, winc, onset, 0, amp, 0, width, 0, tau2, 0)
 				tlast = onset
+				pcnt += 1
+			elseif (continuous == 1)
+				hold = onset - tend
 			endif
 			
-		while (onset < tend)
+		while ((hold == 0) && (onset < tend) && (pcnt < plimit))
 	
 	endfor
 
