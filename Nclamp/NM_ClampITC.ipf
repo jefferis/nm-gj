@@ -34,8 +34,12 @@ Function ITCconfig(aboard)
 	// GJ according to Telly G.  Reset is not required
 	// However this reset is only called when checking the board so I guess it can stanf
 	// It would probably be fine to substitute another quicker function call
-	Execute /Z aboard + "Reset" // attemp to reset ITC board
+	// Execute /Z aboard + "Reset" // attemp to reset ITC board
 
+	//print("GetDevices" + cdf+"ITCDevices")
+	make /I /O /n=4 $(cdf+"ITCDevices")
+	Execute /Z aboard + "GetDevices " + cdf+"ITCDevices" // See if there is an attached ITC18
+	//Execute "print "+cdf+"ITCDevices"
 	if (V_flag != 0)
 		ClampError("unrecognized board : " + aboard)
 		return -1
@@ -106,7 +110,8 @@ Function ITCacquire(mode, savewhen, WaveLength, NumStimWaves, InterStimTime, Num
 	Execute aboard + "WriteAvailable " + cdf + "Avail2Write"
 	
 	Variable pnts = ceil((WaveLength + InterStimTime) * ins / SampleInterval)
-	
+	// GJ
+	print pnts
 	if (acqMode == 0) // test to see if short mode is possible
 	
 		if (pnts > Avail2Write[0]/2) // must be able to load at least two for fast episodic
