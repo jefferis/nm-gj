@@ -311,12 +311,15 @@ Function ITCAcqPrecise(mode, savewhen)
 		
 		Execute aboard + "WriteAvailable " + cdf + "Avail2Write"
 		
-		if ((firstwrite == 1) && (Avail2Write[0] <= outpnts))
-			ITCError("ITC Acq Fast Error", "not enough FIFO space.")
-			return -1
-		endif
+		// GJ commented out because it interrupts every new scan
+//		if ((firstwrite == 1) && (Avail2Write[0] <= outpnts))
+// 			ITCError("ITC Acq Fast Error", "not enough FIFO space.")
+// 			return -1
+// 		endif
 		
-		if ((stimtotal < nwaves) && (Avail2Write[0] >= outpnts))
+		// GJ commented out because it interrupts every new scan
+		if ((stimtotal < nwaves) )
+//		if ((stimtotal < nwaves) && (Avail2Write[0] >= outpnts))
 			
 			if (firstwrite == 1)
 				Execute aboard + "Stim " + outName
@@ -357,7 +360,9 @@ Function ITCAcqPrecise(mode, savewhen)
 		
 		Execute aboard + "WriteAvailable " + cdf + "Avail2Write"
 		
-		if ((stimtotal < nwaves) && (Avail2Write[0] > outpnts))
+		// GJ commented out because it interrupts every new scan
+		if ((stimtotal < nwaves) )
+//		if ((stimtotal < nwaves) && (Avail2Write[0] > outpnts))
 			
 			Execute aboard + "StimAppend " + outName
 			
@@ -375,7 +380,9 @@ Function ITCAcqPrecise(mode, savewhen)
 		
 		Execute aboard + "ReadAvailable " + cdf + "Avail2Read"
 		
-		if ((samptotal < nwaves) && (Avail2Read[0] > inpnts))
+		// GJ commented out because it interrupts every new scan
+		if ((samptotal < nwaves) )
+//		if ((samptotal < nwaves) && (Avail2Read[0] > inpnts))
 
 			if (firstread == 1)
 				Execute aboard + "Samp " + inName
@@ -1423,10 +1430,13 @@ Function ITCmixWaves(mixwname, nmix, wlist, tlist, npnts, ipnts, mixflag, pipede
 	String cdf = ClampDF()
 	
 	numTTL = ItemsInList(tlist)
+
+// GJ: What on earth is this for?
+// We get sent a nice value of nptsand then this seems to overwrite it
 	
-	if (mixflag == 1)
-		npnts = GetXStats("numpnts", wlist)
-	endif
+//	if (mixflag == 1)
+//		npnts = GetXStats("numpnts", wlist)
+//	endif
 	
 	if (numtype(npnts) > 0)
 		return -1 // waves of different length
