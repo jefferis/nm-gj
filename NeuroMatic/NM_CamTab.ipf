@@ -101,14 +101,10 @@ Function CheckCamTab() // declare global variables
 		return -1 // folder doesnt exist
 	endif
 	
-	CheckNMvar(df+"Gain", 0) // create variable (also see Configurations.ipf)
-	
-	CheckNMstr(df+"MyStr", "Anything") // create string
-	
-	CheckNMwave(df+"MyWave", 5, 22) // numeric wave
-	
-	CheckNMtwave(df+"MyText", 5, "Anything") // text wave
-	
+	// Set camera control mode to remote (ie Computer) rather than jumper
+	// do this by default since this is the whole point of this tab!
+	CamSetMode(1)
+	CheckNMvar(df+"Gain", 0) // create variable (also see Configurations.ipf)	
 	return 0
 	
 End // CheckCamTab
@@ -123,7 +119,7 @@ Function MakeCamTab() // create controls that will begin with appropriate prefix
 	
 	String df = CamTabDF()
 
-	ControlInfo /W=NMPanel $CamTabPrefix("Function0") // check first in a list of controls
+	ControlInfo /W=NMPanel $CamTabPrefix("Init") // check first in a list of controls
 	
 	if (V_Flag != 0)
 		return 0 // tab controls exist, return here
@@ -131,24 +127,36 @@ Function MakeCamTab() // create controls that will begin with appropriate prefix
 
 	DoWindow /F NMPanel
 	
-	Button $CamTabPrefix("Init"), pos={x0,y0+0*yinc}, title="Initialise Communication", size={200,20}, proc=CamTabButton
-	Button $CamTabPrefix("CamModeRemote"), pos={x0,y0+1*yinc}, title="Computer Camera Control", size={200,20}, proc=CamTabButton
-	Button $CamTabPrefix("CamModeJumper"), pos={x0,y0+2*yinc}, title="Jumper Camera Control", size={200,20}, proc=CamTabButton
+	Button $CamTabPrefix("Init"), pos={x0,y0+0*yinc}, title="Reset Communication", size={200,20}, proc=CamTabButton
+	Button $CamTabPrefix("Init"),	help = {"Resets the serial port communication with the modem.  Runs automatically when tab is loaded."}
+	Button $CamTabPrefix("CamModeRemote"), pos={x0-40,y0+2*yinc}, title="\\K(65535,0,0)Computer Control", size={120,20}, proc=CamTabButton, help={"Control the camera from the computer ie using this tab"}
+	Button $CamTabPrefix("CamModeJumper"), pos={x0+100,y0+2*yinc}, title="Jumper Control", size={120,20}, proc=CamTabButton, help={"Control the camera using the jumpers on the camera body"}
 	//Button $CamTabPrefix("Function2"), pos={x0,y0+3*yinc}, title="My Function 2", size={200,20}, proc=CamTabButton
+
+	Button $CamTabPrefix("FullManual"), pos={x0-40,y0+4*yinc}, title="Manual Exposure", size={120,20}, proc=CamTabButton
+	Button $CamTabPrefix("FullManual"),	help = {"Sets the camera shutter and gain modes to manual"}
+	Button $CamTabPrefix("FullAuto"), pos={x0+100,y0+4*yinc}, title="Auto Exposure", size={120,20}, proc=CamTabButton
+	Button $CamTabPrefix("FullAuto"),	help = {"Sets the camera shutter and gain modes to auto"}
 	
-	PopupMenu $CamTabPrefix("GainMode"), pos={x0+80,y0+4*yinc}, size={0,0}, bodyWidth=100, fsize=14, proc=CamTabPopup
+	PopupMenu $CamTabPrefix("GainMode"), pos={x0+60,y0+6*yinc}, size={0,0}, bodyWidth=80, fsize=14, proc=CamTabPopup
 // 000 : 0 dB (AGC OFF)	001 : +6dB	002 : AGC ON	004 : Manual by m_gain
-	PopupMenu $CamTabPrefix("GainMode"), value="0 dB (AGC OFF);+6dB;AGC ON;---;Manual;"
-	SetVariable $CamTabPrefix("GainValue"), title="Gain (dB)", pos={x0+100,y0+4*yinc}, size={100,50}, limits={0,24,1}
-	SetVariable $CamTabPrefix("GainValue"), value=$(df+"Gain"), proc=CamTabSetVariable
-
-	PopupMenu $CamTabPrefix("ShutterMode"), pos={x0+60,y0+5*yinc}, size={0,0}, bodyWidth=80, fsize=10, proc=CamTabPopup
-//000 : ES OFF	001 : FL	002 : E..IRIS ON	004 : Manual by m_es
-	PopupMenu $CamTabPrefix("ShutterMode"), value="ES OFF;FL;E IRIS ON;---;Manual;"
+	PopupMenu $CamTabPrefix("GainMode"), value="AGC OFF;+6dB;AGC ON;---;Manual;", title="Gain",help={"Set Gain mode. Must be manual for gain slider to function"}
+	Slider $CamTabPrefix("GainSlider"),  limits= {0,24,1 }, proc=CamTabSlider, pos={x0+70,y0+6*yinc}, vert=0,size={24*6,50}
 	
-	PopupMenu $CamTabPrefix("ShutterSpeed"), pos={x0+200,y0+5*yinc}, size={0,0}, bodyWidth=80, fsize=14, proc=CamTabPopup
-	PopupMenu $CamTabPrefix("ShutterSpeed"), fsize=14,title="Shutter",value="50;120;250;500;1000;2000;4000;10000;20000;30000"
+//	SetVariable $CamTabPrefix("GainValue"), title="Gain (dB)", pos={x0+90,y0+6*yinc}, size={110,50}, limits={0,24,1}
+//	SetVariable $CamTabPrefix("GainValue"), value=$(df+"Gain"), proc=CamTabSetVariable, fsize=14, help = {"Analogue Gain 0-24 dB; only relevant when AGC is set to manual"}
 
+	PopupMenu $CamTabPrefix("ShutterMode"), pos={x0+80,y0+8*yinc}, size={0,0}, bodyWidth=80, fsize=12, proc=CamTabPopup, title = "Shutter"
+//000 : ES OFF	001 : FL	002 : E..IRIS ON	004 : Manual by m_es
+	PopupMenu $CamTabPrefix("ShutterMode"), value="E IRIS OFF;Manual-Camera;E IRIS ON;---;Manual;",help={"Shutter Mode; Choose Manual to adjust or E Iris On for auto, Manual-Camera uses the potentiometer on the camera body"}
+	
+	PopupMenu $CamTabPrefix("ShutterSpeed"), pos={x0+200,y0+8*yinc}, size={0,0}, bodyWidth=70, fsize=14, proc=CamTabPopup, help={"Shutter Speed in reciprocal seconds"}
+	PopupMenu $CamTabPrefix("ShutterSpeed"), fsize=12,title="Speed",value="50;120;250;500;1000;2000;4000;10000;20000;30000"
+
+	//magnification = 256 / (X+1) 63 ... 255
+	Slider $CamTabPrefix("ZoomSlider"),  limits= {1,4,.1 }, proc=CamTabSlider, pos={x0,y0+10*yinc}, vert=0,size={39*6,50}, title="Zoom"
+	DrawText 10,520,"Zoom"
+//	DrawText x0+10,10*yinc,"Zoom"
 End // MakeCamTab
 
 //****************************************************************
@@ -164,7 +172,8 @@ Function CamTabPopup(ctrlName, popNum, popStr) : PopupMenuControl
 		popNum=0
 	endif
 
-	CamTabCall(fxn,num2str(popNum))	
+	CamTabCall(fxn,num2str(popNum))
+	//UpdateExposureModeButtons()
 	//NMMainCall(popStr)
 			
 End // MainTabPopup
@@ -177,6 +186,24 @@ Function CamTabButton(ctrlName) : ButtonControl
 	
 	CamTabCall(fxn, "")
 	
+End // CamTabButton
+
+Function CamTabSlider(name, value, event)
+	String name	// name of this slider control
+	Variable value	// value of slider
+	Variable event	// bit field: bit 0: value set; 1: mouse down, 2: mouse up, 3: mouse moved
+
+	if( event&1 )
+		if(cmpstr(name, CamTabPrefix("GainSlider"))==0 )
+			CamSetGenericAddress(7,value*10,0,240)
+		endif
+		if(cmpstr(name, CamTabPrefix("ZoomSlider"))==0 )
+		//magnification = 256 / (X+1)
+		// X=256/mag -1
+			CamSetGenericAddress(17,round(256/value-1),63,255)
+		endif		
+	endif
+	return 0	// other return values reserved	
 End // CamTabButton
 
 //****************************************************************
@@ -214,17 +241,23 @@ Function CamTabCall(fxn, select)
 		case "Init":
 			return CamCommInit()
 		
+		case "FullManual":
+			return CamFullAutoManual(1)
+
+		case "FullAuto":
+			return CamFullAutoManual(0)
+
 		case "GainMode":
-			return CamSetGenericAddress(1,snum-1,0,4)
+			return CamSetGenericAddress(1,snum-1,0,4) || UpdateExposureModeButtons()
 
 		case "GainValue":
 			return CamSetGenericAddress(7,snum*10,0,240)
 			
 		case "ShutterMode":
-			return CamSetGenericAddress(2,snum-1,0,4)
+			return CamSetGenericAddress(2,snum-1,0,4) || UpdateExposureModeButtons()
 
 		case "ShutterSpeed":
-			CamSetShutterSpeed(snum)
+			return CamSetShutterSpeed(snum)
 			
 		case "Function2":
 			return CamFunction2()
@@ -242,7 +275,6 @@ End // CamTabCall
 Function CamSetShutterSpeed(mode)
 	Variable mode
 	Variable speedVal
-	print mode
 
 	switch(mode)	// numeric switch
 		case 1:		// 50
@@ -293,9 +325,64 @@ Function CamSetGenericAddress(address,value,minval,maxval)
 
 	String vdtstr
 	sprintf vdtstr, "000000W%03.f%03.f" ,address,value
-	VDTWrite2 vdtstr+"\r"
+	//GJ Comment out while on GJPB
+	//VDTWrite2 vdtstr+"\r"
+	//Manual recommends 30 ms interval between commands
+	Sleep 0:0:0.03
 	print vdtstr
 End // CamSetGenericAddress
+
+
+Function CamFullAutoManual(mode)
+	Variable mode // 0 = full auto, 1 = full manual	
+
+	// Check we have a valid mode
+	if (mode<0  || mode>1)
+		return (-1)
+	endif
+	
+	if( mode<2)
+		CamSetGenericAddress(1,(mode+1)*2,0,4) // gain mode  
+		CamSetGenericAddress(2,(mode+1)*2,0,4) // shutter mode 				
+	endif
+	if( mode==0)
+		// Update popups
+		PopupMenu $CamTabPrefix("GainMode"), mode=3
+		PopupMenu $CamTabPrefix("ShutterMode"), mode=3
+	endif
+	if(mode==1)
+		// Update popups
+		PopupMenu $CamTabPrefix("GainMode"), mode=5
+		PopupMenu $CamTabPrefix("ShutterMode"), mode=5
+	endif
+	UpdateExposureModeButtons()
+End // CamFullAutoManual
+
+Function UpdateExposureModeButtons()
+	Variable gainMode,shutterMode
+	
+	ControlInfo $CamTabPrefix("GainMode")
+	gainMode=V_Value
+	ControlInfo $CamTabPrefix("ShutterMode")
+	shutterMode=V_Value
+	
+	if(gainMode==5 && shutterMode==5)
+		// both manual
+		Button $CamTabPrefix("FullManual"), title="\\K(65535,0,0)Manual Exposure"
+		Button $CamTabPrefix("FullAuto"), title="\\K(0,0,0) Auto Exposure"
+	else
+		if(gainMode==3 && shutterMode==3)
+			// both auto
+			Button $CamTabPrefix("FullManual"), title="\\K(0,0,0)Manual Exposure"
+			Button $CamTabPrefix("FullAuto"), title="\\K(65535,0,0) Auto Exposure"
+		else
+			// neither of above
+			Button $CamTabPrefix("FullManual"), title="\\K(0,0,0)Manual Exposure"
+			Button $CamTabPrefix("FullAuto"), title="\\K(0,0,0) Auto Exposure"		
+		endif
+	endif		
+	return (0)
+End
 
 
 Function CamSetMode(mode)
@@ -305,19 +392,14 @@ Function CamSetMode(mode)
 	if (mode<0  || mode>3)
 		return (-1)
 	endif
-
-	VDTWrite2 "000000W00000"+num2str(mode)+"\r"
-	
-//	String df = CamTabDF()
-//
-//	DoAlert 0, "Your macro can be run here."
-//	
-//	NVAR MyVar = $(df+"MyVar")
-//	SVAR MyStr = $(df+"MyStr")
-//	
-//	Wave MyWave = $(df+"MyWave")
-//	Wave /T MyText = $(df+"MyText")
-
+	if(mode==0)
+		Button $CamTabPrefix("CamModeRemote") ,title="\\K(0,0,0)Computer Control"
+		Button $CamTabPrefix("CamModeJumper") ,title="\\K(65535,0,0)Jumper Control"
+	else
+		Button $CamTabPrefix("CamModeRemote") ,title="\\K(65535,0,0)Computer Control"
+		Button $CamTabPrefix("CamModeJumper") ,title="\\K(0,0,0)Jumper Control"
+	endif		
+	CamSetGenericAddress(0,mode,0,4)
 End // CamFunction0
 
 //****************************************************************
@@ -330,7 +412,6 @@ Function CamCommInit()
 	VDTOperationsPort2 'Modem'
 	// Set communications parameters
 	VDT2 baud=9600 , stopbits=1,databits=8, parity=0, in=0, out=0
-	VDTWrite2 "000000W000001\r"
 
 End // CamFunction1
 
