@@ -155,7 +155,7 @@ Function MakeCamTab() // create controls that will begin with appropriate prefix
 
 	//magnification = 256 / (X+1) 63 ... 255
 	Slider $CamTabPrefix("ZoomSlider"),  limits= {1,4,.1 }, proc=CamTabSlider, pos={x0,y0+10*yinc}, vert=0,size={39*6,50}, title="Zoom"
-	DrawText 10,520,"Zoom"
+	TitleBox  $CamTabPrefix("ZoomTitle") , pos={x0-40,y0+10*yinc} ,title="Zoom"
 //	DrawText x0+10,10*yinc,"Zoom"
 End // MakeCamTab
 
@@ -259,12 +259,6 @@ Function CamTabCall(fxn, select)
 		case "ShutterSpeed":
 			return CamSetShutterSpeed(snum)
 			
-		case "Function2":
-			return CamFunction2()
-			
-		case "Function3":
-			return CamFunction3(select)
-
 	endswitch
 	
 End // CamTabCall
@@ -312,7 +306,7 @@ Function CamSetShutterSpeed(mode)
 	endswitch
 	CamSetGenericAddress(8,speedVal,0,255)
 	
-End // CamSetGainMode
+End // CamSetShutterSpeed
 
 Function CamSetGenericAddress(address,value,minval,maxval)
 	Variable address // a 0 padded 3-string 
@@ -369,16 +363,16 @@ Function UpdateExposureModeButtons()
 	if(gainMode==5 && shutterMode==5)
 		// both manual
 		Button $CamTabPrefix("FullManual"), title="\\K(65535,0,0)Manual Exposure"
-		Button $CamTabPrefix("FullAuto"), title="\\K(0,0,0) Auto Exposure"
+		Button $CamTabPrefix("FullAuto"), title="\\K(0,0,0)Auto Exposure"
 	else
 		if(gainMode==3 && shutterMode==3)
 			// both auto
 			Button $CamTabPrefix("FullManual"), title="\\K(0,0,0)Manual Exposure"
-			Button $CamTabPrefix("FullAuto"), title="\\K(65535,0,0) Auto Exposure"
+			Button $CamTabPrefix("FullAuto"), title="\\K(65535,0,0)Auto Exposure"
 		else
 			// neither of above
 			Button $CamTabPrefix("FullManual"), title="\\K(0,0,0)Manual Exposure"
-			Button $CamTabPrefix("FullAuto"), title="\\K(0,0,0) Auto Exposure"		
+			Button $CamTabPrefix("FullAuto"), title="\\K(0,0,0)Auto Exposure"		
 		endif
 	endif		
 	return (0)
@@ -400,7 +394,7 @@ Function CamSetMode(mode)
 		Button $CamTabPrefix("CamModeJumper") ,title="\\K(0,0,0)Jumper Control"
 	endif		
 	CamSetGenericAddress(0,mode,0,4)
-End // CamFunction0
+End // CamSetMode
 
 //****************************************************************
 //****************************************************************
@@ -413,29 +407,4 @@ Function CamCommInit()
 	// Set communications parameters
 	VDT2 baud=9600 , stopbits=1,databits=8, parity=0, in=0, out=0
 
-End // CamFunction1
-
-//****************************************************************
-//****************************************************************
-//****************************************************************
-
-Function CamFunction2()
-
-	Print "My Function 2"
-
-End // CamFunction2
-
-//****************************************************************
-//****************************************************************
-//****************************************************************
-
-Function CamFunction3(select)
-	String select
-
-	Print "You entered : " + select
-
-End // CamFunction3
-
-//****************************************************************
-//****************************************************************
-//****************************************************************
+End // CamCommInit
