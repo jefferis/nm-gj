@@ -48,7 +48,7 @@ Menu "NeuroMatic", dynamic
 	Submenu "Clamp Hot Keys"
 		"Preview/4", ClampButton("CT_StartPreview")
 		"Record/5", ClampButton("CT_StartRecord")
-		"Add Note/6", NotesAddNote()
+		"Add Note/6", NotesAddNote("")
 		"Auto Scale/7", ClampAutoScale()
 	End
 
