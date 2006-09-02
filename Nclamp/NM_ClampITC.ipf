@@ -936,7 +936,9 @@ Function ITCread(chan, gain, npnts)
 			Execute aboard + "StartAcq " + num2str(period) + ", 2"
 			break
 		case "ITC18":
-			Execute aboard + "Seq \"0\",\"" + chanstr + "\",1"
+			// GJ: removed another case of an inappropriate command string for ITC18 
+			Execute aboard + "Seq \"0\",\"" + chanstr + "\""
+//			Execute aboard + "Seq \"0\",\"" + chanstr + "\",1"
 			Execute aboard + "StartAcq " + num2str(period) + ", 2, 0"
 			break
 	endswitch
