@@ -101,6 +101,9 @@ Function CheckCamTab() // declare global variables
 		return -1 // folder doesnt exist
 	endif
 	
+	// Initialise serial communication
+	CamCommInit() // create variable (also see Configurations.ipf)	
+
 	// Set camera control mode to remote (ie Computer) rather than jumper
 	// do this by default since this is the whole point of this tab!
 	CamSetMode(1)
@@ -312,6 +315,9 @@ Function CamSetGenericAddress(address,value,minval,maxval)
 	Variable address // a 0 padded 3-string 
 	Variable value,minval, maxval
 
+	String df = CamTabDF()
+	NVAR SerialCommState = $(df+"SerialCommState")
+
 	// Check we have a valid mode
 	if (value<minval  || value>maxval)
 		printf "Bad value %d",value
@@ -320,10 +326,15 @@ Function CamSetGenericAddress(address,value,minval,maxval)
 	String vdtstr
 	sprintf vdtstr, "000000W%03.f%03.f" ,address,value
 	//GJ Comment out while on GJPB
-	//VDTWrite2 vdtstr+"\r"
-	//Manual recommends 30 ms interval between commands
-	Sleep 0:0:0.03
-	print vdtstr
+	
+	if(SerialCommState==0)
+		// SerialCommState is set to 0 by CamCommInit when successful
+		VDTWrite2 vdtstr+"\r"
+		//Manual recommends 30 ms interval between commands
+		Sleep 0:0:0.03
+	else
+		print "Comm Failure: "+vdtstr
+	endif
 End // CamSetGenericAddress
 
 
@@ -401,10 +412,20 @@ End // CamSetMode
 //****************************************************************
 
 Function CamCommInit()
-
+	// NB It seems to be vital to call CamComInit before attempting any serial port
+	// communication.
+	String df = CamTabDF()
 	Print "CamCommInit"
-	VDTOperationsPort2 'Modem'
-	// Set communications parameters
-	VDT2 baud=9600 , stopbits=1,databits=8, parity=0, in=0, out=0
-
+	try
+		VDTOperationsPort2 'Modem'
+		VDTOpenPort2 'Modem'; AbortOnRTE
+		// Set communications parameters
+		VDT2 baud=9600 , stopbits=1,databits=8, parity=0, in=0, out=0
+	catch
+		print "Unable to open modem"
+		SetNMvar(df+"SerialCommState",-1)
+		return -1
+	endtry
+	SetNMvar(df+"SerialCommState",0)
+	return 0
 End // CamCommInit
