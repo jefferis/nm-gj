@@ -234,12 +234,13 @@ Function SingleAcq()
 			Execute /Z "ITC18seq \"0\",\"0\""		                    		// 1 DAC and 1 ADC. First string is DACs. 2nd string is ADCs
 			AbortOnValue V_Flag,0
 		
-			Execute /Z  "ITC18StimandSample itcout, itcin,"+ num2str(8)+", 2, 0"	// load output data, start acquisition for 10 microsecond sampling and stop
+			Execute /Z  "ITC18StimandSample "+df+"itcout, "+df+"itcin,"+ num2str(8)+", 2, 0"	// load output data, start acquisition for 10 microsecond sampling and stop
 			testpulsein=itcin/(3200*probeGainLowAmps)			// scale data into volts		
 		else
 			AcqFailed=1
 		endif	
 	catch
+		print "Caught Acq Exception"
 		AcqFailed=1
 	endtry
 
