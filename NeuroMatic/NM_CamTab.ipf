@@ -153,7 +153,7 @@ Function MakeCamTab() // create controls that will begin with appropriate prefix
 //000 : ES OFF	001 : FL	002 : E..IRIS ON	004 : Manual by m_es
 	PopupMenu $CamTabPrefix("ShutterMode"), value="E IRIS OFF;Manual-Camera;E IRIS ON;---;Manual;",help={"Shutter Mode; Choose Manual to adjust or E Iris On for auto, Manual-Camera uses the potentiometer on the camera body"}
 
-	PopupMenu $CamTabPrefix("MeteringArea"), pos={x0+80,y0+12*yinc}, size={0,0}, bodyWidth=80, fsize=12, proc=CamTabPopup, title = "Auto Expos Metering Area"
+	PopupMenu $CamTabPrefix("MeteringArea"), pos={x0+200,y0+12*yinc}, size={0,0}, bodyWidth=80, fsize=12, proc=CamTabPopup, title = "Auto Expos Metering Area"
 	PopupMenu $CamTabPrefix("MeteringArea"), value="Upper Corners;Upper Side;Lower Corners;Lower Side;Centre;Spot",help={"Different metering areas for the auto exposure mechanism"}
 	
 	PopupMenu $CamTabPrefix("ShutterSpeed"), pos={x0+200,y0+8*yinc}, size={0,0}, bodyWidth=70, fsize=14, proc=CamTabPopup, help={"Shutter Speed in reciprocal seconds"}
