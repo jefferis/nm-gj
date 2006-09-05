@@ -420,7 +420,7 @@ Function CamCommInit()
 	String df = CamTabDF()
 	Print "CamCommInit"
 	try
-		VDTOperationsPort2 'Modem'
+		VDTOperationsPort2 'Modem'; AbortOnRTE
 		VDTOpenPort2 'Modem'; AbortOnRTE
 		// Set communications parameters
 		VDT2 baud=9600 , stopbits=1,databits=8, parity=0, in=0, out=0

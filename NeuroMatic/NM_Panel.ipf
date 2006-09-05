@@ -35,7 +35,9 @@ End // MakeNMpanelCall
 Function MakeNMpanel()
 	
 	Variable x1, y1, x2, y2, lineheight = 100
-	Variable pw = 300, ph = 640
+//   GJ: Changed to 360 to give a bit more space for extra tabs
+//	Variable pw = 300, ph = 640
+	Variable pw = 360, ph = 640
 	
 	String df = NMDF()
 	String tabList = NMTabListGet()
