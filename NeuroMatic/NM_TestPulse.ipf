@@ -246,9 +246,9 @@ Function SingleAcq()
 
 	// Fake some data 
 	if(AcqFailed==1)
-		Variable fakeresistance = 1e6 + gnoise(.25e6)
+		Variable fakeresistance = 10e6 + gnoise(1e6)
 		testpulsein = testpulseout/fakeresistance
-		testpulsein = testpulsein+ gnoise(mean(testpulsein)/3)
+		testpulsein = testpulsein+ gnoise(mean(testpulsein)/7)
 	endif		
 		
 	Variable I1,I2
@@ -294,11 +294,11 @@ Function TestFetchDF(n)
 	return  microSeconds/n
 End
 	
-Function ModePop(theTag,value,item) : PopupMenuControl
-	String theTag,item
-	Variable value
+Function ModePop(ctrlName,checked) : CheckBoxControl
+	String ctrlName
+	Variable checked			// 1 if selelcted, 0 if not
 
-	ModifyGraph live(testpulsein)= value-1
+	ModifyGraph live(testpulsein)= checked
 End
 
 Function SizePop(theTag,value,item) : PopupMenuControl
@@ -387,15 +387,14 @@ Function ButtonProc(ctrlName) : ButtonControl
 
 End
 
+
 Window TestPulseGraph() : Graph
-//Macro TestPulseGraph()
 	PauseUpdate		// building window...
 	Silent 1
 	String df = TestPulseDF()
 
 	Display /W=(523,444,1327,929) $(df+"testpulsein")
 
-	ModifyGraph live=1
 	ModifyGraph grid=1
 	ModifyGraph minor=1
 	ModifyGraph axOffset(left)=-3.57143,axOffset(bottom)=3.93333
@@ -406,9 +405,12 @@ Window TestPulseGraph() : Graph
 	DrawText 400,31,"Pulse Rate /Hz"
 	SetDrawEnv textxjust= 1
 	DrawText 400,82,"Test Pulse /mV"
-	Button StartButton,pos={9,13},size={50,20},proc=StartButton,title="start"
-	PopupMenu b4,pos={66,14},size={80,20},proc=ModePop,title="Mode:"
-	PopupMenu b4,mode=2,popvalue="Fast",value= #"\"Normal;Fast;\""
+	Button StartButton,pos={25,14},size={50,20},proc=StartButton,title="start"
+	Button ResetButton,pos={90,14},size={50,20},proc=ButtonProc,title="reset"
+
+	CheckBox GraphModeBox,pos={200,75},size={79,14},proc=ModePop,title="Fast Graphing"
+	CheckBox GraphModeBox,help={"When checked the graph uses a special fast mode - among other things it does not autoscale"}
+	CheckBox GraphModeBox,value= 0
 
 	Slider pulserate,pos={455,16},size={200,45},proc=SliderProc,fSize=9
 	Slider pulserate,limits={0,30,1},variable= $(df+"tryFPS"),live= 0,vert= 0,ticks= 30
@@ -416,16 +418,20 @@ Window TestPulseGraph() : Graph
 //	Slider TestPulseSlider,pos={385,61},size={200,45},proc=SliderProc,fSize=9
 	Slider TestPulseSlider,limits={-20,20,1},variable= $(df+"TestPulseSize"),vert= 0,ticks= 25
 	
-	CheckBox AcqModeBox help={"When checked the test pulse displays fake data rather than trying to query the ITC interface"}, variable= root:Packages:TestPulse:AcqMode,noproc, pos={200,81}, title="Demo Acquisition Mode"
+	
+	CheckBox AcqModeBox,pos={200,90},size={121,14},title="Demo Acquisition Mode"
+	CheckBox AcqModeBox,help={"When checked the test pulse displays fake data rather than trying to query the ITC interface"}
+	CheckBox AcqModeBox,variable= root:Packages:TestPulse:AcqMode
 	
 	ValDisplay vd1,pos={24,51},size={225,14},title="Actual F/S"
 	ValDisplay vd1,limits={0,30,0},barmisc={0,40},value= #"root:Packages:TestPulse:fps"
 	PopupMenu b5,pos={16,81},size={125,20},proc=SizePop,title="Wave size:"
 	PopupMenu b5,mode=3,popvalue="Std 500",value= #"\"Short 100;Medium 300;Std 500;Long 1000;longer 10000\""
-	Button ResetButton,pos={180,14},size={50,20},proc=ButtonProc,title="reset"
-	ValDisplay valdisp0,pos={240,14},size={100,14},title="R /MOhm",format="%.2f"
-//	ValDisplay valdisp0,limits={0,1000,0},barmisc={0,50},value= #"df+resistance"
-	ValDisplay valdisp0,limits={0,1000,0},barmisc={0,50},value= #"root:Packages:TestPulse:resistance"
+
+	ValDisplay valdisp0,pos={173,13},size={151,24},title="R /M½",fSize=18
+	ValDisplay valdisp0,format="%07.2f",frame=2
+	ValDisplay valdisp0,limits={0,1000,0},barmisc={0,200},bodyWidth= 92
+	ValDisplay valdisp0,value= #"root:Packages:TestPulse:resistance"
 	RenameWindow #,PTop
 	SetActiveSubwindow ##
 EndMacro

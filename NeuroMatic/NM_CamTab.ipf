@@ -102,7 +102,8 @@ Function CheckCamTab() // declare global variables
 	endif
 	
 	// Initialise serial communication
-	CamCommInit() // create variable (also see Configurations.ipf)	
+	// In the end it seems to be possible to hang terribly easily with the serial port write 
+	//CamCommInit() // create variable (also see Configurations.ipf)	
 
 	// Set camera control mode to remote (ie Computer) rather than jumper
 	// do this by default since this is the whole point of this tab!
@@ -332,9 +333,16 @@ Function CamSetGenericAddress(address,value,minval,maxval)
 	
 	if(SerialCommState==0)
 		// SerialCommState is set to 0 by CamCommInit when successful
-		VDTWrite2 vdtstr+"\r"
-		//Manual recommends 30 ms interval between commands
-		Sleep 0:0:0.03
+		try
+			// Note the use of the one second timeout
+			VDTWrite2 /O=1 vdtstr+"\r"; AbortOnRTE
+			//Manual recommends 30 ms interval between commands
+			Sleep 0:0:0.03
+		catch
+			// Write failed so set comm state to error level
+			SetNMvar(df+"SerialCommState",-1)
+			print "Comm Failure, Try resetting communication: "+vdtstr
+		endtry
 	else
 		print "Comm Failure: "+vdtstr
 	endif
