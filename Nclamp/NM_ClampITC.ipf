@@ -78,7 +78,9 @@ Function ITCacquire(mode, savewhen, WaveLength, NumStimWaves, InterStimTime, Num
 	Variable savewhen // (0) never (1) after (2) while
 	Variable WaveLength, NumStimWaves, InterStimTime, NumStimReps, InterRepTime
 	
-	Variable sizeFIFO = 256000
+	//GJ My FIFO is 1024 kb long 
+//	Variable sizeFIFO = 256000
+	Variable sizeFIFO = 1048576
 	
 	String cdf = ClampDF(), sdf = StimDF()
 	
@@ -716,7 +718,9 @@ Function ITCAcqLong(mode, savewhen)
 			
 				Execute aboard + "WriteAvailable " + cdf + "Avail2Write"
 			
-				if ((firstwrite == 1) && (Avail2Write[0] > numpnts($outName)))
+				// GJ This seems to be causing problems
+				if (firstwrite == 1)
+//				if ((firstwrite == 1) && (Avail2Write[0] > numpnts($outName)))
 					Execute aboard + "Stim " + outName
 					firstwrite = 0
 				endif

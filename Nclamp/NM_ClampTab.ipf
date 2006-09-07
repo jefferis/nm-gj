@@ -165,10 +165,11 @@ Function ClampTabMake()
 	PopupMenu CT_StimList, pos={x0+215,y0}, size={0,0}, bodyWidth=170, mode=1, value=" ", proc=StimListPopup
 	
 	Checkbox CT_StimCheck, pos={x0+225,y0+4}, title="chain", size={10,20}
-	Checkbox CT_StimCheck, value=0, proc=ClampCheckBox
+	Checkbox CT_StimCheck, value=0, proc=ClampCheckBox, help = {"Chain multiple stimuli together"}
 	
 	Checkbox CT_StatsCheck, pos={x0+225,y0+yinc}, title="stats", size={10,20}
 	Checkbox CT_StatsCheck, value=0, proc=ClampCheckBox
+	Checkbox CT_StatsCheck, help = {"Compute online statistics defined with main Stats Tab.  Measurements will appear on the channel display graph as well as Nclamp’s online stats display. Stat waves will be saved in your current NeuroMatic data folder with prefix \"ST_\""}
 	
 	Button CT_Note, title="Note", pos={x0,y0+yinc}, size={45,20}, proc=ClampButton
 	Button CT_StartPreview, title="Preview", pos={x0+60,y0+yinc}, size={65,20}, proc=ClampButton
