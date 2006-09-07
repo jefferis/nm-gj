@@ -110,6 +110,8 @@ Function CheckTestPulse() // declare global variables
 	// Create Global variables and waves
 	CheckNMvar(df+"TestPulseSize", -10) // create variable (also see Configurations.ipf)
 	CheckNMvar(df+"resistance",0) // create variable (also see Configurations.ipf)
+
+	CheckNMvar(df+"ADCRange",10) // create variable (also see Configurations.ipf)
 	
 	CheckNMvar(df+"fps", 0) // create variable (also see Configurations.ipf)
 	CheckNMvar(df+"tryFPS",15) // create variable (also see Configurations.ipf)
@@ -221,7 +223,9 @@ Function SingleAcq()
 	NVAR tps = $(df +"TestPulseSize")
 	NVAR resistance = $(df +"resistance")
 	NVAR AcqMode = $(df+"AcqMode")
+	NVAR ADCRange = $(df+"ADCRange")
 	Variable lev=tps*1e-3
+	
 		
 	testpulseout=0
 	testpulseout[numpnts(testpulseout)/4,3*numpnts(testpulseout)/4]=lev
@@ -232,10 +236,11 @@ Function SingleAcq()
 	try
 		if(AcqMode==0)
 			Execute /Z "ITC18seq \"0\",\"0\""		                    		// 1 DAC and 1 ADC. First string is DACs. 2nd string is ADCs
-			AbortOnValue V_Flag,0
+			AbortOnValue V_Flag!=0,0
 		
 			Execute /Z  "ITC18StimandSample "+df+"itcout, "+df+"itcin,"+ num2str(8)+", 2, 0"	// load output data, start acquisition for 10 microsecond sampling and stop
-			testpulsein=itcin/(3200*probeGainLowAmps)			// scale data into volts		
+			// NB ADCRange must be factored in 
+			testpulsein=itcin/(3200*probeGainLowAmps)*	ADCRange/10	// scale data into volts	
 		else
 			AcqFailed=1
 		endif	
@@ -312,6 +317,40 @@ Function SizePop(theTag,value,item) : PopupMenuControl
 	Redimension/N=(tdata[value-1]) testpulsein,testpulseout,itcin,itcout
 	KillWaves tdata
 	SetScale/P x 0,0.01,"ms", testpulsein,testpulseout
+End
+
+Function ADCPop(theTag,value,item) : PopupMenuControl
+	String theTag,item
+	Variable value
+
+	String df = TestPulseDF()
+	NVAR ADCRange = $(df+"ADCRange")
+	NVAR AcqMode = $(df+"AcqMode")
+	
+	switch(value)	// numeric switch
+		case 1:		// execute if case matches expression
+			ADCRange=1
+			break						// exit from switch
+		case 2:		// execute if case matches expression
+			ADCRange=2
+			break						// exit from switch
+		case 3:		// execute if case matches expression
+			ADCRange=5
+			break						// exit from switch
+		default:							// optional default expression executed
+			ADCRange=10				// when no case matches
+	endswitch
+
+	// Now change the range
+	try
+		if(AcqMode==0)
+			Execute /Z "ITC18SetADCRange 0,"+num2str(ADCRange)		                    		// 1 DAC and 1 ADC. First string is DACs. 2nd string is ADCs
+			AbortOnValue V_Flag!=0,0
+		endif	
+	catch
+		print "Caught Acq Exception"
+	endtry
+
 End
 
 Function SetFPS(name, value, event)
@@ -424,9 +463,12 @@ Window TestPulseGraph() : Graph
 	CheckBox AcqModeBox,variable= root:Packages:TestPulse:AcqMode
 	
 	ValDisplay vd1,pos={24,51},size={225,14},title="Actual F/S"
-	ValDisplay vd1,limits={0,30,0},barmisc={0,40},value= #"root:Packages:TestPulse:fps"
+	ValDisplay vd1,limits={0,30,0},barmisc={0,40},value= root:Packages:TestPulse:fps
 	PopupMenu b5,pos={16,81},size={125,20},proc=SizePop,title="Wave size:"
 	PopupMenu b5,mode=3,popvalue="Std 500",value= #"\"Short 100;Medium 300;Std 500;Long 1000;longer 10000\""
+
+	PopupMenu adcrange,pos={686,17},size={94,20},proc=ADCPop,title="ADC Range"
+	PopupMenu adcrange,mode=3,popvalue="10",value= "1;2;5;10", help={"Range of ITC ADC converter default = +/- 10.24 V => 312.5µV resolution"}
 
 	ValDisplay valdisp0,pos={173,13},size={151,24},title="R /M½",fSize=18
 	ValDisplay valdisp0,format="%07.2f",frame=2
