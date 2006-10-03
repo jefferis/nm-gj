@@ -226,7 +226,6 @@ Function SingleAcq()
 	NVAR ADCRange = $(df+"ADCRange")
 	Variable lev=tps*1e-3
 	
-		
 	testpulseout=0
 	testpulseout[numpnts(testpulseout)/4,3*numpnts(testpulseout)/4]=lev
 	Variable AM2400ExternalGain50=50
@@ -260,7 +259,14 @@ Function SingleAcq()
 	I2=mean(testpulsein,pnt2x(testpulsein,1.5*numpnts(testpulsein)/4),pnt2x(testpulsein,2.5*numpnts(testpulsein)/4))
 	I1=mean(testpulsein,0,pnt2x(testpulsein,1*numpnts(testpulsein)/4))
 	resistance=lev/(I2-I1)/1e6
-
+	// Set a max value of 10 GOhm and min value of 0 for resistance
+	if (resistance>10000)
+		resistance=9999.99
+	else
+		if(resistance<0)
+			resistance = 0
+		endif
+	endif
 	ResumeUpdate
 	return 0
 End
