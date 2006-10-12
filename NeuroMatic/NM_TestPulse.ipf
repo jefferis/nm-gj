@@ -107,9 +107,14 @@ Function CheckTestPulse() // declare global variables
 	// will be non zero if there is a problem accessing the ITC
 	SetNMvar(df+"AcqMode",V_Flag) // set variable (also see Configurations.ipf)
 	
+	// Make sure that we have ADC range at +/- 10 V
+	Execute /Z "ITC18SetADCRange 10"
+	
 	// Create Global variables and waves
 	CheckNMvar(df+"TestPulseSize", -10) // create variable (also see Configurations.ipf)
 	CheckNMvar(df+"resistance",0) // create variable (also see Configurations.ipf)
+	// Size of moving average for resistance
+	CheckNMvar(df+"RSmoothWindow", -10) // create variable (also see Configurations.ipf)
 
 	CheckNMvar(df+"ADCRange",10) // create variable (also see Configurations.ipf)
 	
@@ -156,8 +161,8 @@ Function MakeTestPulse() // create controls that will begin with appropriate pre
 	Button $TestPulsePrefix("Function1"), pos={x0,y0+2*yinc}, title="Test Pulse", size={200,20}, proc=TestPulseButton
 	Button $TestPulsePrefix("Function2"), pos={x0,y0+3*yinc}, title="Macro TestPulse", size={200,20}, proc=TestPulseButton
 	
-	SetVariable $TestPulsePrefix("Function3"), title="Test Pulse /mV", pos={x0,y0+4*yinc}, size={120,50}, limits={-50,50,1}
-	SetVariable $TestPulsePrefix("Function3"), value=$(df+"TestPulseSize"), proc=TestPulseSetVariable
+	SetVariable $TestPulsePrefix("Function3"), title="RSmoothWindow /mV", pos={x0,y0+4*yinc}, size={140,50}, limits={1,6,1}
+	SetVariable $TestPulsePrefix("Function3"), value=$(df+"RSmoothWindow"), proc=TestPulseSetVariable
 
 End // MakeTestPulse
 
