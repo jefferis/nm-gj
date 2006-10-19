@@ -180,8 +180,9 @@ Function TModeCheck(mode)
 		return -1
 	endif
 	
-	telValue = ClampReadManager(StrVarOrDefault(cdf+"AcqBoard", ""), driver, chan, 1, 5)
-	
+	 telValue = ClampReadManager(StrVarOrDefault(cdf+"AcqBoard", ""), driver, chan, 1, 5)
+	// GJ Testing - pretend we are in I-Clamp
+	// telValue=3.8
 	
 	strswitch(instr)
 	
@@ -919,7 +920,16 @@ Function MyTelegraphGain(tgain, defaultGain)
 			break
 		// Added by GJ 2006-07-14
 		case "AM2400":
-			alpha = TGainAM2400(tgain)
+			// Telegraph ouput on my AM2400 is not as advertised, so need to divide by 10 
+			// if we are in current clamp mode
+			String tmode = StrVarOrDefault(StimDF()+"TModeStr", "")
+			if (StringMatch(tmode[0,0], "I") == 1)
+				alpha = TGainAM2400Iclamp(tgain)
+				//printf "Telegraphed gain is=%f mV/mV\r",alpha
+			else
+				// As per AM2400 manual
+				alpha = TGainAM2400(tgain)
+			endif
 			//GJ: Does this mean that what is going to come out is a scale value in 
 			// V / pA or V/mV?
 			// Does this in turn mean that mV and pA are the natural units of nclamp/neuromatic?
@@ -975,6 +985,34 @@ Function /S TModeAM2400(telValue)
 	return ""
 
 End // TModeAM2400
+Function TGainAM2400Iclamp(telValue)
+	Variable telValue	
+	Variable telRound = round(10 * telValue / 5)
+	// >=0.25V -> 1
+	// >=0.75V -> 2 etc
+	//printf "Telegraph gain value %f gives telRound=%f\r",telValue,telRound
+	switch(telRound)
+		case 2:
+			return 1
+		case 3:
+			return 2
+		case 4:
+			return 5
+		case 5:
+			return 10
+		case 6:
+			return 20
+		case 7:
+			return 50
+		case 8:
+			return 100
+		default:
+			Print "\rAM2400 Telegraph Gain not recognized : " + num2str(telValue)
+	endswitch
+	
+	return -1
+
+End // TGainAM2400
 
 Function TGainAM2400(telValue)
 	Variable telValue	
@@ -982,7 +1020,6 @@ Function TGainAM2400(telValue)
 	// >=0.25V -> 1
 	// >=0.75V -> 2 etc
 	
-	// GJ: 2006-07-14
 	switch(telRound)
 		case 0:
 			return 0.01
