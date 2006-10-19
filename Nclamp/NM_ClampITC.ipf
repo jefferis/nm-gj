@@ -871,24 +871,26 @@ Function ITCprescan()
 		tempWave = 0
 		
 		Execute aboard + "SetADCRange " + chanstr + "," + ITCrangeStr(gain)
-	
-		strswitch(aboard)
-			case "ITC16":
-				Execute aboard + "Seq \"0\",\"" + chanstr + "\""
-				Execute aboard + "StartAcq " + num2str(period) + ", 2"
-				break
-			case "ITC18":
-				// GJ: removed another case of an inappropriate command string for ITC18 
-				// Execute aboard + "Seq \"0\",\"" + chanstr + "\",1"
-				Execute aboard + "Seq \"0\",\"" + chanstr + "\""
-				Execute aboard + "StartAcq " + num2str(period) + ", 2, 0"
-				break
-		endswitch
-		
-		Execute aboard + "Stim " + inName
-		Execute aboard + "Samp " + inName
-		Execute aboard + "stopacq"
-		
+		// GJ simplify the whole acquiistion step and remove a bug in which output was being sent to the Channel 0
+		Execute aboard + "Seq \"0\",\"" + chanstr + "\""
+		// Note that flags = 0 which means that no output is actually sent		
+		Execute aboard + "StimAndSample " + inName+","+inName+ ","+num2str(period) + ", 0, 0" 
+
+//		strswitch(aboard)
+//			case "ITC16":
+////				Execute aboard + "Seq \"0\",\"" + chanstr + "\""
+//				Execute aboard + "StartAcq " + num2str(period) + ", 2"
+//				break
+//			case "ITC18":
+//				// GJ: removed another case of an inappropriate command string for ITC18 
+//				// Execute aboard + "Seq \"0\",\"" + chanstr + "\",1"
+////				Execute aboard + "Seq \"0\",\"" + chanstr + "\""
+//				Execute aboard + "StartAcq " + num2str(period) + ", 2, 0"
+//				break
+//		endswitch
+//		
+////		Execute aboard + "stopacq"
+//		
 		Rotate -6, tempWave
 		
 		Redimension /N=(npnts) tempWave
@@ -930,26 +932,10 @@ Function ITCread(chan, gain, npnts)
 	
 	Make /O/N=(npnts+garbage) CT_ITCread = 0
 	
-	//Execute aboard + "Reset"
-	
 	Execute aboard + "SetADCRange " + chanstr + "," + ITCrangeStr(gain)
-	
-	strswitch(aboard)
-		case "ITC16":
-			Execute aboard + "Seq \"0\",\"" + chanstr + "\""
-			Execute aboard + "StartAcq " + num2str(period) + ", 2"
-			break
-		case "ITC18":
-			// GJ: removed another case of an inappropriate command string for ITC18 
-			Execute aboard + "Seq \"0\",\"" + chanstr + "\""
-//			Execute aboard + "Seq \"0\",\"" + chanstr + "\",1"
-			Execute aboard + "StartAcq " + num2str(period) + ", 2, 0"
-			break
-	endswitch
-	
-	Execute aboard + "Stim CT_ITCread"
-	Execute aboard + "Samp CT_ITCread"
-	Execute aboard + "stopacq"
+	Execute aboard + "Seq \"0\",\"" + chanstr + "\""
+	// nb having flags=0 prevents any unfortunate output activity
+	Execute aboard + "StimAndSample CT_ITCread,CT_ITCread,"+num2str(period) + ", 0, 0" 
 	
 	Wave CT_ITCread
 		
