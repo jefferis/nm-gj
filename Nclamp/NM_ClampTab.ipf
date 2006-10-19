@@ -321,7 +321,7 @@ Function ClampTabMake()
 	SetVariable CT2_IOname, title= "name", pos={x0+xinc,y0+4*yinc}, size={140,50}
 	SetVariable CT2_IOname, value=$(tdf+"IOname"), proc=StimSetVar, disable=1
 	
-	SetVariable CT2_IOgain, title= "gain", pos={x0+170,y0+4*yinc}, size={75,50}, limits={1,inf,1}
+	SetVariable CT2_IOgain, title= "ADC gain", pos={x0+170,y0+4*yinc}, size={85,50}, limits={1,inf,1}
 	SetVariable CT2_IOgain, value=$(tdf+"IOgain"), proc=StimSetVar, disable=1
 	
 	y0 = 470; yinc = 40
