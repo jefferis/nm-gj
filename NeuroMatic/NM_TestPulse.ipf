@@ -242,7 +242,8 @@ Function SingleAcq()
 			Execute /Z "ITC18seq \"0\",\"0\""		                    		// 1 DAC and 1 ADC. First string is DACs. 2nd string is ADCs
 			AbortOnValue V_Flag!=0,0
 		
-			Execute /Z  "ITC18StimandSample "+df+"itcout, "+df+"itcin,"+ num2str(8)+", 2, 0"	// load output data, start acquisition for 10 microsecond sampling and stop
+			// load output data, start acquisition for 10 microsecond sampling and stop
+			Execute /Z  "ITC18StimandSample "+df+"itcout, "+df+"itcin,"+ num2str(8)+", 2, 0"	
 			// NB ADCRange must be factored in 
 			testpulsein=itcin/(3200*probeGainLowAmps)*	ADCRange/10	// scale data into volts	
 		else
@@ -261,7 +262,8 @@ Function SingleAcq()
 	endif		
 		
 	Variable I1,I2
-	I2=mean(testpulsein,pnt2x(testpulsein,1.5*numpnts(testpulsein)/4),pnt2x(testpulsein,2.5*numpnts(testpulsein)/4))
+	I2=mean(testpulsein,pnt2x(testpulsein,2*numpnts(testpulsein)/4),pnt2x(testpulsein,3*numpnts(testpulsein)/4))
+//	I2=mean(testpulsein,pnt2x(testpulsein,1.5*numpnts(testpulsein)/4),pnt2x(testpulsein,2.5*numpnts(testpulsein)/4))
 	I1=mean(testpulsein,0,pnt2x(testpulsein,1*numpnts(testpulsein)/4))
 	resistance=lev/(I2-I1)/1e6
 	// Set a max value of 10 GOhm and min value of 0 for resistance

@@ -226,7 +226,7 @@ Function TModeCheckConfig()
 	String amode = StrVarOrDefault(sdf+"TModeStr", "")
 	String instr = StrVarOrDefault(cdf+"ClampInstrument", "")
 	
-	String mlist = "V-clamp;I-clamp;I-clamp Normal;I-clamp Fast;"
+	String mlist = "V-clamp;I-clamp;I = 0;I-clamp Normal;I-clamp Fast;"
 	
 	Prompt chan, "select ADC input that reads telegraph mode:", popup "0;1;2;3;4;5;6;7;"
 	Prompt amode, "choose mode required for this protocol:", popup mlist
