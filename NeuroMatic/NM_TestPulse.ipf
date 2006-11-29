@@ -199,13 +199,19 @@ End // TestPulseSetVariable
 Function TestPulseCall(fxn, select)
 	String fxn // function name
 	String select // parameter string variable
+	String myWinName="TestPulseGraph"
 	
 	Variable snum = str2num(select) // parameter variable number
 	
 	strswitch(fxn)
 	
 		case "MakeTPGraph":
-			Execute "TestPulseGraph()"
+			// Check if we already have a graph
+			if(strlen(WinList(myWinName,";",""))>0)
+				Execute "DoWindow /F "+myWinName
+			else
+				Execute "TestPulseGraph()"
+			endif
 			return 0
 			//return NMMainLoop() // see NM_MainTab.ipf
 
