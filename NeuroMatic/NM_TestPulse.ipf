@@ -47,6 +47,7 @@ Function TestPulse(enable)
 		CheckPackage("TestPulse", 0) // declare globals if necessary
 		MakeTestPulse() // create tab controls if necessary
 		AutoTestPulse()
+		CheckTestPulse()
 	endif
 
 End // TestPulse
@@ -117,20 +118,30 @@ Function CheckTestPulse() // declare global variables
 	CheckNMvar(df+"RSmoothWindow", -10) // create variable (also see Configurations.ipf)
 
 	CheckNMvar(df+"ADCRange",10) // create variable (also see Configurations.ipf)
+	CheckNMvar(df+"PulseOn",1) // Default is to have test pulse on (when graph is started)
 	
+	CheckNMstr(df+"ClampMode","VC") // create variable (also see Configurations.ipf)
+		
 	CheckNMvar(df+"fps", 0) // create variable (also see Configurations.ipf)
 	CheckNMvar(df+"tryFPS",15) // create variable (also see Configurations.ipf)
 	CheckNMvar(df+"nticksLast",ticks) // create variable (also see Configurations.ipf)
-		
-	CheckNMwave(df+"testpulseout", 500, 0) // numeric wave
-	CheckNMwave(df+"testpulsein", 500, 0) // numeric wave
-	CheckNMwave(df+"itcout", 500, 0) // numeric wave
-	CheckNMwave(df+"itcin", 500, 0) // numeric wave
+	
+	CheckNMvar(df+"WaveLength",500)
+	NVAR WaveLength=$(df+"WaveLength")
+	CheckNMwave(df+"testpulseout", WaveLength, 0) // numeric wave
+	CheckNMwave(df+"testpulsein", WaveLength, 0) // numeric wave
+	CheckNMwave(df+"itcout", WaveLength, 0) // numeric wave
+	CheckNMwave(df+"itcin", WaveLength, 0) // numeric wave
 	
 	SetScale/P x 0,1e-5,"s", $(df+"testpulsein"), $(df+"testpulseout")
-	SetScale d 0,0,"A", $(df+"testpulsein")
-	SetScale d 0,0,"V", $(df+"testpulseout")
-
+	SVAR ClampMode=$(df+"ClampMode")
+	if(stringmatch(ClampMode,"VC"))
+		SetScale d 0,0,"A", $(df+"testpulsein")
+		SetScale d 0,0,"V", $(df+"testpulseout")
+	else
+		SetScale d 0,0,"V", $(df+"testpulsein")
+		SetScale d 0,0,"A", $(df+"testpulseout")
+	endif	
 	
 	CheckNMtwave(df+"MyText", 5, "Anything") // text wave
 	
@@ -235,23 +246,44 @@ Function SingleAcq()
 	NVAR resistance = $(df +"resistance")
 	NVAR AcqMode = $(df+"AcqMode")
 	NVAR ADCRange = $(df+"ADCRange")
-	Variable lev=tps*1e-3
-	
+	NVAR PulseOn = $(df+"PulseOn")
+	SVAR ClampMode = $(df+"ClampMode")
+
+	// TestPulseSize comes in as either mV or pA
+	// But I will convert to A or V
+
+	Variable lev, CommandGain, SignalGain
+	if(stringmatch(ClampMode,"VC"))
+		lev=tps*1e-3 // convert from mV to V
+		CommandGain=50 // (20mV /V of cmd signal => 1/20e-3=50)
+		SignalGain=100e-3*1e9 // 100*1e9 mV/A probe gain 
+	else
+		lev=tps*1e-12 // convert from pA to A
+		//lev*=100 // TOFIX
+		CommandGain=1e9 // (1nA/V of cmd signal => 1/1e-9=1e9)
+		SignalGain=10 // 10V / V signal gain
+	endif
 	testpulseout=0
-	testpulseout[numpnts(testpulseout)/4,3*numpnts(testpulseout)/4]=lev
-	Variable AM2400ExternalGain50=50
-	Variable probeGainLowAmps= 100e-3*1e9 // 100*1e9 mV/A probe gain 
-	itcout=testpulseout*AM2400ExternalGain50*3200
+	if(PulseOn)
+		testpulseout[numpnts(testpulseout)/4,3*numpnts(testpulseout)/4]=lev
+	endif
+	itcout=testpulseout*CommandGain*3200
 	Variable AcqFailed=0
 	try
 		if(AcqMode==0)
-			Execute /Z "ITC18seq \"0\",\"0\""		                    		// 1 DAC and 1 ADC. First string is DACs. 2nd string is ADCs
+			if(stringmatch(ClampMode,"VC"))
+				Execute /Z "ITC18seq \"0\",\"0\""		                    		// 1 DAC and 1 ADC. First string is DACs. 2nd string is ADCs
+			else
+				// Use channel 1 for input / output
+				// (for Axoclamp 2B Bridge Mode)
+				Execute /Z "ITC18seq \"1\",\"1\""		                    		// 1 DAC and 1 ADC. First string is DACs. 2nd string is ADCs
+			endif
 			AbortOnValue V_Flag!=0,0
 		
 			// load output data, start acquisition for 10 microsecond sampling and stop
-			Execute /Z  "ITC18StimandSample "+df+"itcout, "+df+"itcin,"+ num2str(8)+", 2, 0"	
+			Execute /Z  "ITC18StimandSample "+df+"itcout, "+df+"itcin,"+ num2str(8)+", 2, 0"
 			// NB ADCRange must be factored in 
-			testpulsein=itcin/(3200*probeGainLowAmps)*	ADCRange/10	// scale data into volts	
+			testpulsein=itcin/(3200*SignalGain)*	ADCRange/10	// scale data into volts	
 		else
 			AcqFailed=1
 		endif	
@@ -320,22 +352,35 @@ End
 	
 Function ModePop(ctrlName,checked) : CheckBoxControl
 	String ctrlName
-	Variable checked			// 1 if selelcted, 0 if not
+	Variable checked			// 1 if selected, 0 if not
 
 	ModifyGraph live(testpulsein)= checked
 End
 
+Function AxisScalePop(ctrlName,checked) : CheckBoxControl
+	String ctrlName
+	Variable checked			// 1 if selected, 0 if not
+	if(checked)
+		SetAxis left -0.1,0.02
+	else
+		SetAxis/A
+	endif
+End
+	
 Function SizePop(theTag,value,item) : PopupMenuControl
 	String theTag,item
 	Variable value
 
 	String df = TestPulseDF()
+	NVAR WaveLength=$(df+"WaveLength")
 	Wave testpulseout=$(df+"testpulseout"), testpulsein= $(df+"testpulsein"), itcout=$(df+"itcout"),itcin=$(df+"itcin")
 
-	Make tdata={100,300,500,1000,10000}
-	Redimension/N=(tdata[value-1]) testpulsein,testpulseout,itcin,itcout
+	Make tdata={100,300,500,1000,5000,10000}
+	WaveLength=tdata[value-1]
+	Redimension/N=(WaveLength) testpulsein,testpulseout,itcin,itcout
 	KillWaves tdata
 	SetScale/P x 0,0.01,"ms", testpulsein,testpulseout
+	
 End
 
 Function ADCPop(theTag,value,item) : PopupMenuControl
@@ -363,13 +408,39 @@ Function ADCPop(theTag,value,item) : PopupMenuControl
 	// Now change the range
 	try
 		if(AcqMode==0)
-			Execute /Z "ITC18SetADCRange 0,"+num2str(ADCRange)		                    		// 1 DAC and 1 ADC. First string is DACs. 2nd string is ADCs
+			Execute /Z "ITC18SetADCRange 0,"+num2str(ADCRange)
+			AbortOnValue V_Flag!=0,0
+			Execute /Z "ITC18SetADCRange 1,"+num2str(ADCRange)
 			AbortOnValue V_Flag!=0,0
 		endif	
 	catch
 		print "Caught Acq Exception"
 	endtry
+End
 
+Function CMPop(theTag,value,item) : PopupMenuControl
+	String theTag,item
+	Variable value
+
+	String df = TestPulseDF()
+	SVAR ClampMode = $(df+"ClampMode")
+	NVAR tps = $(df +"TestPulseSize")
+	if(stringmatch(ClampMode,item)==0)
+		ClampMode=item
+		CheckTestPulse()
+		if(stringmatch(ClampMode,"VC"))
+			Slider TestPulseSlider,limits={-20,20,1}
+			if (tps<-20)
+				tps=-20
+			endif
+			if (tps>20)
+				tps=20
+			endif
+		else
+			Slider TestPulseSlider,limits={-500,500,1}
+		endif
+
+	endif		
 End
 
 Function SetFPS(name, value, event)
@@ -450,19 +521,23 @@ Window TestPulseGraph() : Graph
 	PauseUpdate		// building window...
 	Silent 1
 	String df = TestPulseDF()
-
+	// Make sure we always start in VC
+	$(df+"ClampMode")="VC"
+	Variable LocalADCRange =  $(df+"ADCRange")
+	Variable LocalWaveLength =  $(df+"WaveLength")
+		 
 	Display /W=(523,444,1327,929) $(df+"testpulsein")
-
+	
 	ModifyGraph grid=1
 	ModifyGraph minor=1
-	ModifyGraph axOffset(left)=-3.57143,axOffset(bottom)=3.93333
+	ModifyGraph axOffset(left)=-1.57143,axOffset(bottom)=0.2
 	ControlBar 112
 	NewPanel/W=(0.2,0.2,0.8,0)/FG=(FL,FT,GR,)/HOST=# 
 	SetDrawLayer UserBack
 	SetDrawEnv textxjust= 1
 	DrawText 400,31,"Pulse Rate /Hz"
-	SetDrawEnv textxjust= 1
-	DrawText 400,82,"Test Pulse /mV"
+//	SetDrawEnv textxjust= 1, fsize=10
+//	DrawText 400,82,"Test Pulse /mV or pA"
 	Button StartButton,pos={25,14},size={50,20},proc=StartButton,title="start"
 	Button ResetButton,pos={90,14},size={50,20},proc=ButtonProc,title="reset"
 
@@ -470,24 +545,34 @@ Window TestPulseGraph() : Graph
 	CheckBox GraphModeBox,help={"When checked the graph uses a special fast mode - among other things it does not autoscale"}
 	CheckBox GraphModeBox,value= 0
 
-	Slider pulserate,pos={455,16},size={200,45},proc=SliderProc,fSize=9
-	Slider pulserate,limits={0,30,1},variable= $(df+"tryFPS"),live= 0,vert= 0,ticks= 30
-	Slider TestPulseSlider,pos={455,61},size={200,45},proc=SliderProc,fSize=9
-//	Slider TestPulseSlider,pos={385,61},size={200,45},proc=SliderProc,fSize=9
-	Slider TestPulseSlider,limits={-20,20,1},variable= $(df+"TestPulseSize"),vert= 0,ticks= 25
-	
-	
+	CheckBox AxisScaleBox,pos={200,60},size={79,14},proc=AxisScalePop,title="Full Range"
+	CheckBox AxisScaleBox,help={"When checked the graph will change to a full scale range of -100 to +20 mV"}
+	CheckBox AxisScaleBox,value= 0
+
 	CheckBox AcqModeBox,pos={200,90},size={121,14},title="Demo Acquisition Mode"
 	CheckBox AcqModeBox,help={"When checked the test pulse displays fake data rather than trying to query the ITC interface"}
 	CheckBox AcqModeBox,variable= root:Packages:TestPulse:AcqMode
+
+	CheckBox PulseOnBox, pos={350,60},size={95,14},fSize=10,title="Pulse /mV or pA"; DelayUpdate
+	CheckBox PulseOnBox,help={"When unchecked the test pulse is not to sent the amplifier "}
+	CheckBox PulseOnBox,variable= root:Packages:TestPulse:PulseOn
 	
-	ValDisplay vd1,pos={24,51},size={225,14},title="Actual F/S"
+	Slider pulserate,pos={455,16},size={200,45},proc=SliderProc,fSize=9
+	Slider pulserate,limits={0,30,1},variable= $(df+"tryFPS"),live= 0,vert= 0,ticks= 30
+	Slider TestPulseSlider,pos={455,61},size={200,45},proc=SliderProc,fSize=9
+	Slider TestPulseSlider,limits={-20,20,1},variable= $(df+"TestPulseSize"),vert= 0,ticks= 25
+	
+	
+	ValDisplay vd1,pos={24,51},size={150,14},title="Actual F/S"
 	ValDisplay vd1,limits={0,30,0},barmisc={0,40},value= root:Packages:TestPulse:fps
-	PopupMenu b5,pos={16,81},size={125,20},proc=SizePop,title="Wave size:"
-	PopupMenu b5,mode=3,popvalue="Std 500",value= #"\"Short 100;Medium 300;Std 500;Long 1000;longer 10000\""
+	PopupMenu b5,pos={16,81},size={125,20},proc=SizePop,title="Wave length:"
+	PopupMenu b5,mode=3,popvalue=num2str(LocalWaveLength),value= #"\"100;300;500;1000;5000;10000\""
 
 	PopupMenu adcrange,pos={686,17},size={94,20},proc=ADCPop,title="ADC Range"
-	PopupMenu adcrange,mode=3,popvalue="10",value= "1;2;5;10", help={"Range of ITC ADC converter default = +/- 10.24 V => 312.5µV resolution"}
+	PopupMenu adcrange,mode=3,popvalue= num2str(LocalADCRange),value= "1;2;5;10", help={"Range of ITC ADC converter default = +/- 10.24 V => 312.5µV resolution"}
+
+	PopupMenu ClampMode,pos={686,57},size={94,20},proc=CMPop,title="Clamp Mode"
+	PopupMenu ClampMode,mode=3,popvalue="VC",value= "VC;IC", help={"Amplifier Mode - either Voltage Clamp or Current Clamp"}
 
 	ValDisplay valdisp0,pos={173,13},size={151,24},title="R /M½",fSize=18
 	ValDisplay valdisp0,format="%07.2f",frame=2
