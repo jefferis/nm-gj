@@ -121,6 +121,7 @@ Function CheckTestPulse() // declare global variables
 	CheckNMvar(df+"PulseOn",1) // Default is to have test pulse on (when graph is started)
 	
 	CheckNMstr(df+"ClampMode","VC") // create variable (also see Configurations.ipf)
+	CheckNMstr(df+"Amplifier","AM2400") // create variable (also see Configurations.ipf)
 		
 	CheckNMvar(df+"fps", 0) // create variable (also see Configurations.ipf)
 	CheckNMvar(df+"tryFPS",15) // create variable (also see Configurations.ipf)
@@ -238,7 +239,8 @@ End // TestPulseCall
 Function SingleAcq()
 	String df = TestPulseDF()
 
-	silent 1									// don't print commands to the command line
+	// don't print commands to the command line
+	silent 1									
 	Wave testpulseout=$(df+"testpulseout"), testpulsein= $(df+"testpulsein"), itcout=$(df+"itcout"),itcin=$(df+"itcin")
 	PauseUpdate
 	
@@ -248,6 +250,7 @@ Function SingleAcq()
 	NVAR ADCRange = $(df+"ADCRange")
 	NVAR PulseOn = $(df+"PulseOn")
 	SVAR ClampMode = $(df+"ClampMode")
+	SVAR Amplifier = $(df+"Amplifier")
 
 	// TestPulseSize comes in as either mV or pA
 	// But I will convert to A or V
@@ -256,12 +259,22 @@ Function SingleAcq()
 	if(stringmatch(ClampMode,"VC"))
 		lev=tps*1e-3 // convert from mV to V
 		CommandGain=50 // (20mV /V of cmd signal => 1/20e-3=50)
-		SignalGain=100e-3*1e9 // 100*1e9 mV/A probe gain 
+		if(stringmatch(Amplifier,"AM2400"))	
+			// Amplifier Gain (1-100) * Raw Headstage gain (100mV/nA)
+			SignalGain=10*100e-3*1e9 // 100*1e9 mV/A probe gain 	
+		else
+			// Axoclamp
+			SignalGain=100e-3*1e9 // 100*1e9 mV/A probe gain 
+		endif
 	else
 		lev=tps*1e-12 // convert from pA to A
-		//lev*=100 // TOFIX
-		CommandGain=1e9 // (1nA/V of cmd signal => 1/1e-9=1e9)
-		SignalGain=10 // 10V / V signal gain
+		if(stringmatch(Amplifier,"AM2400"))		
+			CommandGain=5*100e6 // AM2400 IClamp cmd gain in Probe Low with 100 MOhm headstage
+			SignalGain=10// 10V / V signal gain  (range 1-100, all on amplifier)
+		else
+			CommandGain=1e9 // (1nA/V of cmd signal => 1/1e-9=1e9)
+			SignalGain=10 // 10V / V signal gain
+		endif
 	endif
 	testpulseout=0
 	if(PulseOn)
@@ -271,7 +284,7 @@ Function SingleAcq()
 	Variable AcqFailed=0
 	try
 		if(AcqMode==0)
-			if(stringmatch(ClampMode,"VC"))
+			if(stringmatch(ClampMode,"VC") || stringmatch(Amplifier,"AM2400"))
 				Execute /Z "ITC18seq \"0\",\"0\""		                    		// 1 DAC and 1 ADC. First string is DACs. 2nd string is ADCs
 			else
 				// Use channel 1 for input / output
@@ -299,11 +312,16 @@ Function SingleAcq()
 		testpulsein = testpulsein+ gnoise(mean(testpulsein)/7)
 	endif		
 		
-	Variable I1,I2
-	I2=mean(testpulsein,pnt2x(testpulsein,2*numpnts(testpulsein)/4),pnt2x(testpulsein,3*numpnts(testpulsein)/4))
+	Variable X1,X2
+	X2=mean(testpulsein,pnt2x(testpulsein,2*numpnts(testpulsein)/4),pnt2x(testpulsein,3*numpnts(testpulsein)/4))
 //	I2=mean(testpulsein,pnt2x(testpulsein,1.5*numpnts(testpulsein)/4),pnt2x(testpulsein,2.5*numpnts(testpulsein)/4))
-	I1=mean(testpulsein,0,pnt2x(testpulsein,1*numpnts(testpulsein)/4))
-	resistance=lev/(I2-I1)/1e6
+	X1=mean(testpulsein,0,pnt2x(testpulsein,1*numpnts(testpulsein)/4))
+	
+	if(stringmatch(ClampMode,"VC"))
+		resistance=lev/(X2-X1)/1e6
+	else
+		resistance=(X2-X1)/lev/1e6	
+	endif
 	// Set a max value of 10 GOhm and min value of 0 for resistance
 	if (resistance>10000)
 		resistance=9999.99
@@ -442,6 +460,14 @@ Function CMPop(theTag,value,item) : PopupMenuControl
 
 	endif		
 End
+Function AmplifierPop(theTag,value,item) : PopupMenuControl
+	String theTag,item
+	Variable value
+
+	String df = TestPulseDF()
+	SVAR Amplifier = $(df+"Amplifier")
+	Amplifier=item
+End
 
 Function SetFPS(name, value, event)
 	String name	// name of this slider control
@@ -568,11 +594,14 @@ Window TestPulseGraph() : Graph
 	PopupMenu b5,pos={16,81},size={125,20},proc=SizePop,title="Wave length:"
 	PopupMenu b5,mode=3,popvalue=num2str(LocalWaveLength),value= #"\"100;300;500;1000;5000;10000\""
 
-	PopupMenu adcrange,pos={686,17},size={94,20},proc=ADCPop,title="ADC Range"
+	PopupMenu adcrange,pos={675,17},size={94,20},proc=ADCPop,title="ADC Range"
 	PopupMenu adcrange,mode=3,popvalue= num2str(LocalADCRange),value= "1;2;5;10", help={"Range of ITC ADC converter default = +/- 10.24 V => 312.5µV resolution"}
 
-	PopupMenu ClampMode,pos={686,57},size={94,20},proc=CMPop,title="Clamp Mode"
+	PopupMenu ClampMode,pos={675,47},size={94,20},proc=CMPop,title="Clamp Mode"
 	PopupMenu ClampMode,mode=3,popvalue="VC",value= "VC;IC", help={"Amplifier Mode - either Voltage Clamp or Current Clamp"}
+
+	PopupMenu Amplifier,pos={675,77},size={94,20},proc=AmplifierPop,title="Amplifier"
+	PopupMenu Amplifier,mode=3,popvalue="AM2400",value= "AM2400;Axoclamp", help={"Choose the Amplifier"}
 
 	ValDisplay valdisp0,pos={173,13},size={151,24},title="R /M½",fSize=18
 	ValDisplay valdisp0,format="%07.2f",frame=2
