@@ -103,8 +103,8 @@ Function CheckTestPulse() // declare global variables
 	endif
 	
 	// Check to see if ITC is active:
-	make/I /O devices
-	Execute /Z "ITC18GetDevices devices"
+	CheckNMWave(df+"tmpdevices",1,0)
+	Execute /Z "ITC18GetDevices "+df+"tmpdevices"
 	// will be non zero if there is a problem accessing the ITC
 	SetNMvar(df+"AcqMode",V_Flag) // set variable (also see Configurations.ipf)
 	
@@ -115,8 +115,15 @@ Function CheckTestPulse() // declare global variables
 	CheckNMvar(df+"TestPulseSize", -10) // create variable (also see Configurations.ipf)
 	CheckNMvar(df+"resistance",0) // create variable (also see Configurations.ipf)
 	// Size of moving average for resistance
-	CheckNMvar(df+"RSmoothWindow", -10) // create variable (also see Configurations.ipf)
-
+	CheckNMvar(df+"SweeperWindow", 5) // create variable (also see Configurations.ipf)
+	NVAR SweeperWindow=$(df+"SweeperWindow")
+	CheckNMvar(df+"SweeperTimeStep",200e-6)
+	NVAR SweeperTimeStep=$(df+"SweeperTimeStep")
+	CheckNMWave(df+"SweeperStimWave",SweeperWindow/SweeperTimeStep,0)
+	CheckNMWave(df+"SweeperSampWave",SweeperWindow/SweeperTimeStep,0)
+	
+	SetScale/P x 0,SweeperTimeStep,"s", $(df+"SweeperStimWave"), $(df+"SweeperSampWave")
+	
 	CheckNMvar(df+"ADCRange",10) // create variable (also see Configurations.ipf)
 	CheckNMvar(df+"PulseOn",1) // Default is to have test pulse on (when graph is started)
 	
@@ -156,7 +163,7 @@ End // CheckTestPulse
 
 Function MakeTestPulse() // create controls that will begin with appropriate prefix
 
-	Variable x0 = 60, y0 = 250, xinc, yinc = 60
+	Variable x0 = 40, y0 = 220, xinc, yinc = 50,buttonH=20,buttonW=140
 	
 	String df = TestPulseDF()
 
@@ -168,13 +175,24 @@ Function MakeTestPulse() // create controls that will begin with appropriate pre
 
 	DoWindow /F NMPanel
 	
-	Button $TestPulsePrefix("MakeTPGraph"), pos={x0,y0+0*yinc}, title="Test Pulse Graph", size={200,20}, proc=TestPulseButton
-	Button $TestPulsePrefix("Demo"), pos={x0,y0+1*yinc}, title="Macro TP Setup", size={200,20}, proc=TestPulseButton
-	Button $TestPulsePrefix("Function1"), pos={x0,y0+2*yinc}, title="Test Pulse", size={200,20}, proc=TestPulseButton
-	Button $TestPulsePrefix("Function2"), pos={x0,y0+3*yinc}, title="Macro TestPulse", size={200,20}, proc=TestPulseButton
+	//DrawRect x0-10,y0-10,x0+20+2*buttonW,y0+10+1*(yinc+buttonH)
+	GroupBox $TestPulsePrefix("TestPulseBox"), pos={x0-10,y0-20}, size={30+2*buttonW,30+1*(yinc+buttonH)}, title = "Test Pulse Graph"
+	Button $TestPulsePrefix("MakeTPGraph"), pos={x0,y0+0*yinc}, title="Open Test Pulse", size={buttonW,buttonH}, proc=TestPulseButton
+	Button $TestPulsePrefix("CloseTPGraph"), pos={x0+150,y0+0*yinc}, title="Close Test Pulse", size={buttonW,buttonH}, proc=TestPulseButton
+	Button $TestPulsePrefix("StartStopTP"), pos={x0,y0+1*yinc}, title="Start/Stop Test Pulse", size={buttonW,buttonH}, proc=TestPulseButton
+	Button $TestPulsePrefix("ResetTP"), pos={x0+150,y0+1*yinc}, title="Reset Test Pulse", size={buttonW,buttonH}, proc=TestPulseButton
+
+//	DrawRect x0-10,y0-10+2*yinc,x0+20+2*buttonW,y0+10+1*(yinc+buttonH)+2*yinc
+	GroupBox $TestPulsePrefix("SweeperBox"), pos={x0-10,y0-20+3*yinc}, size={30+2*buttonW,30+1*(yinc+buttonH)}, title = "Sweeper Graph"
+	Button $TestPulsePrefix("MakeSweeperGraph"), pos={x0,y0+3*yinc}, title="Open Sweeper Graph", size={buttonW,buttonH}, proc=TestPulseButton
+	Button $TestPulsePrefix("CloseSweeperGraph"), pos={x0+150,y0+3*yinc}, title="Close Sweeper", size={buttonW,buttonH}, proc=TestPulseButton
+	Button $TestPulsePrefix("StartStopSweeper"), pos={x0,y0+4*yinc}, title="Start/Stop Sweeper", size={buttonW,buttonH}, proc=TestPulseButton
+	Button $TestPulsePrefix("ResetSweeper"), pos={x0+150,y0+4*yinc}, title="Reset Sweeper", size={buttonW,buttonH}, proc=TestPulseButton, disable=2
+
+//	Button $TestPulsePrefix(""), pos={x0,y0+3*yinc}, title="Macro TestPulse", size={buttonW,buttonH}, proc=TestPulseButton
 	
-	SetVariable $TestPulsePrefix("Function3"), title="RSmoothWindow /mV", pos={x0,y0+4*yinc}, size={140,50}, limits={1,6,1}
-	SetVariable $TestPulsePrefix("Function3"), value=$(df+"RSmoothWindow"), proc=TestPulseSetVariable
+	SetVariable $TestPulsePrefix("SweeperWidth"), title="Sweeper Window /s", pos={x0,y0+5*yinc}, size={140,50}, limits={1,20,1}
+	SetVariable $TestPulsePrefix("SweeperWidth"), value=$(df+"SweeperWindow"), proc=TestPulseSetVariable
 
 End // MakeTestPulse
 
@@ -211,7 +229,8 @@ End // TestPulseSetVariable
 Function TestPulseCall(fxn, select)
 	String fxn // function name
 	String select // parameter string variable
-	String myWinName="TestPulseGraph"
+	String myTPWinName="TestPulseGraph"
+	String mySweeperWinName="TPSweeperGraph"
 	
 	Variable snum = str2num(select) // parameter variable number
 	
@@ -219,14 +238,29 @@ Function TestPulseCall(fxn, select)
 	
 		case "MakeTPGraph":
 			// Check if we already have a graph
-			if(strlen(WinList(myWinName,";",""))>0)
-				Execute "DoWindow /F "+myWinName
+			if(strlen(WinList(myTPWinName,";",""))>0)
+				Execute "DoWindow /F "+myTPWinName
 			else
 				Execute "TestPulseGraph()"
 			endif
 			return 0
 			//return NMMainLoop() // see NM_MainTab.ipf
-
+		case "CloseTPGraph":
+			Execute /Z "DoWindow /K "+myTPWinName
+			return 0
+		case "MakeSweeperGraph":
+			if(strlen(WinList(mySweeperWinName,";",""))>0)
+				Execute "DoWindow /F "+mySweeperWinName
+			else
+				Execute mySweeperWinName+"()"
+			endif
+			return 0
+		case "CloseSweeperGraph":
+			Execute /Z "DoWindow /K "+mySweeperWinName
+			return 0
+		case "StartStopSweeper":
+			Execute "TPSweepStart()"
+			return 0
 	endswitch
 	
 End // TestPulseCall
@@ -497,9 +531,25 @@ Function StartButton(theTag)
 	String df = TestPulseDF()
 
 	NVAR tryFPS=$(df+"tryFPS"),fps=$(df+"fps")
+
+	NVAR ADCRange = $(df+"ADCRange")
+	NVAR AcqMode = $(df+"AcqMode")
+
 	print tryFPS
 	if( cmpstr(theTag,"StartButton")==0 )
 		Button $theTag,rename=StopButton,title="stop"
+
+		try
+			if(AcqMode==0)
+				Execute /Z "ITC18SetADCRange 0,"+num2str(ADCRange)
+				AbortOnValue V_Flag!=0,0
+				Execute /Z "ITC18SetADCRange 1,"+num2str(ADCRange)
+				AbortOnValue V_Flag!=0,0
+			endif	
+		catch
+			print "Caught Acq Exception"
+		endtry
+
 		SetBackground SingleAcq() +UpdateFPS()
 		CtrlBackground period=60/tryFPS,dialogsOK=1,noBurst=1,start
 		fps= 0
@@ -611,3 +661,143 @@ Window TestPulseGraph() : Graph
 	SetActiveSubwindow ##
 EndMacro
 
+Window TPSweeperGraph() : Graph
+	PauseUpdate; Silent 1		// building window...
+	String df = TestPulseDF()
+	Display /W=(12,44,984,392) $(df+"SweeperSampWave")
+EndMacro
+
+Function TPSweeperWriteSingleChunk(outwavename,offset,chunkSize,scaleFactor)
+	// nb ChunkNum starts at 0
+	String outwavename
+	Variable offset,chunkSize,scaleFactor
+	Wave outwave=$(outwavename)
+	String df = TestPulseDF()
+	Wave Avail2Write=$(df+"Avail2Write")
+
+	if(chunkSize<=0)
+		return 0
+	endif
+	
+	Execute "ITC18WriteAvailable "+df+"Avail2Write"
+	if(Avail2Write[0]>=chunkSize)
+		make /o /n=(chunkSize) $(df+"gjtmpChunk")
+		Wave gjtmpChunk=$(df+"gjtmpChunk")
+		gjtmpChunk=(outwave[p+offset])*scaleFactor
+		Execute "ITC18StimAppend "+df+"gjtmpChunk" 
+		return chunkSize
+	endif
+	return 0
+End
+
+Function TPSweeperReadSingleChunk(inwavename,offset,chunkSize,scaleFactor)
+	String inwavename
+	Variable offset,chunkSize,scaleFactor
+	Wave inwave=$(inwavename)
+	String df = TestPulseDF()
+	Wave Avail2Read=$(df+"Avail2Read")
+	
+	if(chunkSize<=0)
+		return 0
+	endif
+
+	Execute "ITC18ReadAvailable "+df+"Avail2Read"
+	
+	if(Avail2Read[0]>=chunkSize)
+		make /o /n=(chunkSize) $(df+"gjtmpChunk")
+		Wave gjtmpChunk=$(df+"gjtmpChunk")
+		Execute "ITC18SampAppend "+df+"gjtmpChunk"
+				
+		inwave[offset,offset+chunkSize-1] = (gjtmpChunk[p-offset])*scaleFactor
+		return chunkSize
+	endif
+	return 0
+End
+
+Function TPSingleSweep(timestep,maxChunkSize)
+	Variable timestep,maxChunkSize
+	Variable nTicks=round(timestep/1.25e-6)
+	Variable chunkSize
+
+	Variable writeOffset=0,readOffset=0, bytesWritten=-1,bytesRead=-1
+	
+	// These are defined as what you have to multiply samp wave to get data wave
+	// and what you have to mutlply cmd wave to get stim wave 
+	Variable rScaleFactor=1/3200,wScaleFactor=3200
+	
+	String df = TestPulseDF()
+	Wave  SweeperStimWave=$(df+"SweeperStimWave")
+	Wave  SweeperSampWave=$(df+"SweeperSampWave")
+	
+	chunkSize=min(maxChunkSize,numpnts(SweeperSampWave))
+	CheckNMWave(df+"outwave",chunkSize,0)
+	Wave outwave =$(df+"outwave")
+	outwave=SweeperStimWave  // nb this will truncate longoutwave if reqd
+		
+	SweeperSampWave=0; DoUpdate
+	
+	Execute "ITC18Stim "+df+"outwave"    // load first chunk of stim
+	writeOffset+=maxChunkSize
+	
+	if(0)
+	do // Preload stim wave until there's nothing left or the FIFO's full
+		chunkSize=min(maxChunkSize,numpnts(SweeperStimWave)-writeOffset)
+		printf "writeOffset = %d; chunkSize = %d\r", writeOffset, chunkSize
+		bytesWritten=TPSweeperWriteSingleChunk(df+"SweeperStimWave",writeOffset,chunkSize,wScaleFactor)
+		writeOffset+=bytesWritten
+	while (writeOffset<numpnts(SweeperStimWave) && bytesWritten!=0)
+	endif
+	
+	Variable startTicks=ticks
+	Execute "ITC18StartAcq "+num2str(nTicks)+",2,0"   // start acquisition, 100 microsecond sampling 
+
+	do // Stim and Samp when possible until exhausted 
+
+		chunkSize=min(maxChunkSize,numpnts(SweeperStimWave)-writeOffset)
+		writeOffset+=TPSweeperWriteSingleChunk(df+"SweeperStimWave",writeOffset,chunkSize,wScaleFactor)
+
+		chunkSize=min(maxChunkSize,numpnts(SweeperSampWave)-readOffset)
+		bytesRead=TPSweeperReadSingleChunk(df+"SweeperSampWave",readOffset,chunkSize,rScaleFactor)
+		
+		if(bytesRead>0)
+			readOffset+=bytesRead
+			DoUpdate
+		endif
+		
+	while (writeOffset<numpnts(SweeperStimWave)  || readOffset<numpnts(SweeperSampWave) )
+
+	Execute "ITC18StopAcq"    // terminate acquisition 	
+	printf  "%f, ",(ticks-startTicks)/60.15
+End
+
+Function TPSweepStart()
+	Execute "ITC18seq \"0\",\"0\""		                    		// 1 DAC and 1 ADC. First string is DACs. 2nd string is ADCs
+	
+	String df = TestPulseDF()
+	
+	NVAR SweeperTimeStep=$(df+"SweeperTimeStep")
+
+	Variable chunkSize=max(0.25/SweeperTimeStep, 1000)
+
+	CheckNMvar(df+"SweeperWindow", 5) // create variable (also see Configurations.ipf)
+	NVAR SweeperWindow=$(df+"SweeperWindow")
+	CheckNMvar(df+"SweeperTimeStep",200e-6)
+	NVAR SweeperTimeStep=$(df+"SweeperTimeStep")
+	CheckNMWave(df+"SweeperStimWave",SweeperWindow/SweeperTimeStep,0)
+	CheckNMWave(df+"SweeperSampWave",SweeperWindow/SweeperTimeStep,0)
+
+	Wave  SweeperStimWave=$(df+"SweeperStimWave")
+	Wave  SweeperSampWave=$(df+"SweeperSampWave")	
+	SetScale/P x 0,(SweeperTimeStep),"s", SweeperStimWave,SweeperSampWave
+	
+	make /n=1 /o /I $(df+"Avail2Read"),$(df+"Avail2Write")
+
+	//longoutwave[1000,6000] = 1  // create data points
+
+	do 
+		//startTicks=ticks
+		TPSingleSweep(SweeperTimeStep,chunkSize)
+		//print (ticks-startTicks)/60.15
+	while(1)
+	Execute "ITC18StopAcq"
+EndMacro

@@ -325,7 +325,13 @@ Function CheckNMConfig(fname)
 			//NMConfigStr(fname, "F_Drug", "", "Experimental drugs")
 		
 			break
-			
+		case "MFC":
+			NMConfigWave(fname,"MaxFlowWave",kMFCMaxControllers,0,"Full Scale Value of Flow Meter")
+			NMConfigWave(fname,"SetPointWave",kMFCMaxControllers,0,"Set Point of Flow Meter")
+			NMConfigWave(fname,"MFCActiveWave",kMFCMaxControllers,0,"Whether Flow Meter is Active or Not")
+			NMConfigTWave(fname,"MFCIDWave",kMFCMaxControllers,"","Serial ID of the Flow Meter (A-Z)")
+			NMConfigVar(fname, "TotalSetPoint", 0, "Total Desired Flow Rate")
+			NMConfigVar(fname, "CleverTotals", 0, "Clever Totalling (adjusts flow rates to main total flow or same ratio)")
 		default:
 		
 			return -1
