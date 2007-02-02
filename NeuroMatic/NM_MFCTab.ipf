@@ -281,7 +281,7 @@ Function MakeMFC() // create controls that will begin with appropriate prefix
 
 	Variable i=0, ypos
 	for (i=0;i<kMFCMaxControllers;i+=1)
-		ypos=y0+60+(i+1)*yinc
+		ypos=y0+80+(i+1)*yinc
 		Checkbox $MFCPrefix("Active"+num2str(i)), pos={x0-20,ypos+2}, title="", size={20,20}, proc=MFCActivateCheckBox, fsize=12
 		Checkbox $MFCPrefix("Active"+num2str(i)), help = {"Activate MFC."}, proc = MFCActiveBox,value= MFCActiveWave[i] 
 	
@@ -375,7 +375,7 @@ Function CheckActiveControllers()
 		if(MFCActiveWave[i])
 			print "Checking MFC"+num2str(i)
 			comError=MFCStatus(MFCIDWave[i],mss)
-			if(comError==0)
+			if(comError>=0)
 				FlowRateWave[i]=mss.MassFlow
 				SetPointWave[i]=mss.MassFlowCmd
 			else
@@ -573,7 +573,7 @@ Function /S MFCReadString()
 	if(SerialCommState==0)
 		// SerialCommState is set to 0 by MFCCommInit when successful
 		try
-			VDTRead2 /O=(kMFCSerialTimeOutLength) vdtstr; AbortOnRTE
+			VDTRead2 /Q /O=(kMFCSerialTimeOutLength) vdtstr; AbortOnRTE
 		catch
 			// Write failed so set comm state to error level
 			// Is this appropriate for a read failure?
@@ -652,9 +652,11 @@ Structure MFCStatusStruct
 	String Gas
 EndStructure
 
-Function testParseMFCStatusString()
+Function testParseMFCStatusString(tstr)
+	String tstr
+//	tstr="+014.70 +025.00 +02.004 +02.004 2.004 Air"
 	STRUCT MFCStatusStruct ms2
-	ParseMFCStatusString("+014.70 +025.00 +02.004 +02.004 2.004 Air",ms2)
+	ParseMFCStatusString(tstr,ms2)
 	print "Actual Flow rate is "+num2str(ms2.MassFlow)
 End
 
@@ -685,19 +687,19 @@ Function ParseMFCStatusString(vdtstr, ms)
 	STRUCT MFCStatusStruct &ms
 	
 	Variable f1,f2,f3,f4,f5, nRead=-1
-	String Gas
-	sscanf vdtstr,"%f %f %f %f %f%s", f1,f2,f3,f4,f5,Gas
+	String id, Gas
+	sscanf vdtstr,"%s %f %f %f %f %f %s", id, f1,f2,f3,f4,f5,Gas
 	nRead=V_flag
-	if(nRead==6)
+	if(nRead==7)
 		ms.Pressure=f1
 		ms.Temp=f2
-		ms.VolFlow=f3
-		ms.MassFlow=f4
-		ms.MassFlowCmd=f5
+		ms.VolFlow=f3*1000
+		ms.MassFlow=f4*1000
+		ms.MassFlowCmd=f5*1000
 		ms.Gas=Gas
 //	printf "%f, %f, %f, %f, %f, %s\r",f1,f2,f3,f4,f5,Gas
 	else 
-		ms.MassFlow=-1		
+		ms.MassFlow=NaN
 	endif 
 	return nRead
 End
@@ -714,8 +716,8 @@ Function MFCCommInit()
 	String df = MFCDF()
 	Print "MFCCommInit"
 	try
-		VDTOperationsPort2 'Modem'; AbortOnRTE
-		VDTOpenPort2 'Modem'; AbortOnRTE
+		VDTOperationsPort2 'KeySerial1'; AbortOnRTE
+		VDTOpenPort2 'KeySerial1'; AbortOnRTE
 		// Set communications parameters
 		VDT2 baud=19200 , stopbits=1,databits=8, parity=0, in=0, out=0
 		// Send a few returns to clear any pending commands
