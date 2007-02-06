@@ -175,12 +175,12 @@ Function MFCSendCommands()
 	WAVE MaxFlowWave=$(df+"MaxFlowWave")
 	WAVE /T MFCIDWave=$(df+"MFCIDWave")
 
-	Variable i, errorVal,rval=0
+	Variable i=0, errorVal,rval=0
 	STRUCT MFCStatusStruct mss
 
 	for (i=0; i<kMFCMaxControllers;i+=1)
 		if(MFCActiveWave[i])
-			//print "Sending command to MFC"+num2str(i)
+			print "Sending command to MFC"+num2str(i)
 			errorVal=MFCSetFlowRate(MFCIDWave[i],SetPointWave[i],MaxFlowWave[i])
 			if(errorVal!=kMFCok)
 				rval-=1
@@ -228,7 +228,6 @@ Function MFCSetVarValidator (ctrlName,varNum,varStr,varName) : SetVariableContro
 	endif
 	NVAR liveSend=$(df+"liveSend")
 	if(liveSend)
-		print "Live send"
 		MFCSendCommands()
 	endif
 
@@ -238,6 +237,15 @@ End
 Function MFCSetLiveCheck (ctrlName,checked) : CheckBoxControl
 	String ctrlName
 	Variable checked			// 1 if selelcted, 0 if not
+	String df = MFCDF()
+	NVAR liveCheck=$(df+"liveCheck"), liveSend=$(df+"liveSend")
+
+	if(stringmatch(ctrlName,"*MFCSetLiveSendCheck"))
+		liveSend=checked
+		return 1
+	else
+		liveCheck=checked
+	endif
 	if(checked)
 		SetBackground CheckActiveControllers()
 		CtrlBackground period=60/kMFCRefreshRate,dialogsOK=1,noBurst=1,start
@@ -281,7 +289,7 @@ Function MakeMFC() // create controls that will begin with appropriate prefix
 	Checkbox $MFCPrefix("MFCSetLiveCheck"), help = {"Continuous polling of MFC status"}, proc = MFCSetLiveCheck,value= liveCheck 
 
 	Checkbox $MFCPrefix("MFCSetLiveSendCheck"), pos={x0+130,y0+2*yinc}, title="Continuous send", size={20,20}, fsize=12
-	Checkbox $MFCPrefix("MFCSetLiveSendCheck"), help = {"Continuously sencd commands to MFC"}, value= liveSend, noproc
+	Checkbox $MFCPrefix("MFCSetLiveSendCheck"), help = {"Continuously sencd commands to MFC"}, proc=MFCSetLiveCheck, value= liveSend
 
 //	Button $MFCPrefix("CheckStatus"), pos={x0,y0+0*yinc}, title="Check Flow Status", size={140,20}, proc=MFCButton
 //	Button $MFCPrefix("CheckStatus"),	help = {"Checks the current flow reading and set point for the active MFCs."}
