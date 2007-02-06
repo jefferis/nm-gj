@@ -180,7 +180,7 @@ Function MFCSendCommands()
 
 	for (i=0; i<kMFCMaxControllers;i+=1)
 		if(MFCActiveWave[i])
-			print "Sending command to MFC"+num2str(i)
+			//print "Sending command to MFC"+num2str(i)
 			errorVal=MFCSetFlowRate(MFCIDWave[i],SetPointWave[i],MaxFlowWave[i])
 			if(errorVal!=kMFCok)
 				rval-=1
@@ -192,6 +192,11 @@ Function MFCSendCommands()
 End
 
 Function MFCZeroFlow()
+	String df = MFCDF()
+	WAVE MFCActiveWave=$(df+"MFCActiveWave")
+	WAVE SetPointWave=$(df+"SetPointWave")
+	SetPointWave=0
+	MFCSendCommands()
 End
 
 Function MFCSetVarValidator (ctrlName,varNum,varStr,varName) : SetVariableControl
@@ -270,7 +275,7 @@ Function MakeMFC() // create controls that will begin with appropriate prefix
 	Button $MFCPrefix("ZeroFlow"),	help = {"Sets all active MFCs to zero flow"}
 	
 	Button $MFCPrefix("SendCommands"), pos={x0+130,y0+1*yinc}, title="Send Commands", size={130,20}, proc=MFCButton
-	Button $MFCPrefix("SendCommands"),	help = {"Sends currentset points to active flow meters"}
+	Button $MFCPrefix("SendCommands"),	help = {"Sends current set points to active flow meters"}
 
 	Checkbox $MFCPrefix("MFCSetLiveCheck"), pos={x0-20,y0+2*yinc}, title="Continuous polling", size={20,20}, proc=MFCSetLiveCheck, fsize=12
 	Checkbox $MFCPrefix("MFCSetLiveCheck"), help = {"Continuous polling of MFC status"}, proc = MFCSetLiveCheck,value= liveCheck 
@@ -288,16 +293,23 @@ Function MakeMFC() // create controls that will begin with appropriate prefix
 	
 	NVAR CleverTotals=$(df+"CleverTotals")
 
+	DrawText x0+10,y0+120,"MFCID"
+	DrawText x0+50,y0+120,"FullScale"
+	DrawText x0+120,y0+120,"SetPoint"
+	DrawText x0+190,y0+120,"FlowRate"
 	Variable i=0, ypos
 	for (i=0;i<kMFCMaxControllers;i+=1)
-		ypos=y0+80+(i+1)*yinc
+		ypos=y0+100+(i+1)*yinc
 		Checkbox $MFCPrefix("Active"+num2str(i)), pos={x0-20,ypos+2}, title="", size={20,20}, proc=MFCActivateCheckBox, fsize=12
 		Checkbox $MFCPrefix("Active"+num2str(i)), help = {"Activate MFC."}, proc = MFCActiveBox,value= MFCActiveWave[i] 
 	
-		SetVariable $MFCPrefix("MFCID"+num2str(i)) size={30,20}, value=::Packages:MFC:MFCIDWave[i],pos={x0+10,ypos},title=" ", fsize=12
-		SetVariable $MFCPrefix("MaxFlow"+num2str(i)) size={60,20},value=::Packages:MFC:MaxFlowWave[i],pos={x0+50,ypos}, title=" ",limits={0,2000,500}, fsize=12
-		SetVariable $MFCPrefix("SetPoint"+num2str(i)) size={60,20},value=::Packages:MFC:SetPointWave[i],pos={x0+120,ypos}, title=" ",limits={0,2000,50}, fsize=12, proc=MFCSetVarValidator
+		SetVariable $MFCPrefix("MFCID"+num2str(i)) size={30,20}, value=::Packages:MFC:MFCIDWave[i],pos={x0+10,ypos},title=" ", fsize=12, help={"Controller ID (A-Z)"}
+		SetVariable $MFCPrefix("MaxFlow"+num2str(i)) size={60,20},value=::Packages:MFC:MaxFlowWave[i],pos={x0+50,ypos},limits={0,2000,500}
+		SetVariable $MFCPrefix("MaxFlow"+num2str(i)) title=" ", fsize=12,help={"The Full Scale value of the controller - eg 2000 ml/min = SCCM"}
+
+		SetVariable $MFCPrefix("SetPoint"+num2str(i)) size={60,20},value=::Packages:MFC:SetPointWave[i],pos={x0+120,ypos}, title=" ",limits={0,2000,50}, fsize=12, proc=MFCSetVarValidator,help={"The set point that will be sent to the controller - in SCCM"}
 		SetVariable $MFCPrefix("FlowRate"+num2str(i)) , fsize=12,pos={x0+190,ypos},size={60,20}, title=" ", value=::Packages:MFC:FlowWave[i],  noedit=1
+		SetVariable $MFCPrefix("FlowRate"+num2str(i)) help = {"The Flow Rate reported by the controler"}
 		//SetVariable $MFCPrefix("FlowRatio"+num2str(i)) , fsize=12, mode=2,pos={x0+240,ypos}, size={50,20}, disable=1,value=::Packages:MFC:FlowWave[i]/root:Packages:MFC:TotalSetPoint
 	endfor	
 //	ValDisplay $MFCPrefix("FlowRatio"+num2str(i)) value=#root:Packages:MFC:SetPointWave[2]/root:Packages:MFC:TotalSetPoint
@@ -353,11 +365,12 @@ Function CheckActiveControllers()
 
 	for (i=0; i<kMFCMaxControllers;i+=1)
 		if(MFCActiveWave[i])
-			print "Checking MFC"+num2str(i)
+			//print "Checking MFC"+num2str(i)
 			comError=MFCStatus(MFCIDWave[i],mss)
 			if(comError>=0)
 				FlowRateWave[i]=mss.MassFlow
-				SetPointWave[i]=mss.MassFlowCmd
+				// Do I want two waves for the flow command? One for Igor, One for MFC
+			//	SetPointWave[i]=mss.MassFlowCmd
 			else
 				rval-=1
 			endif
