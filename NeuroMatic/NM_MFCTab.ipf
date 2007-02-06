@@ -51,6 +51,7 @@ Function MFC(enable)
 	if (enable == 1)
 		CheckPackage("MFC", 0) // declare globals if necessary
 		MakeMFC() // create tab controls if necessary
+		EnableControlLines() // Enable the controls for active MFCs 
 		AutoMFC()
 	endif
 
@@ -118,7 +119,7 @@ Function CheckMFC() // declare global variables
 	CheckNMVar(df+"TotalSetPoint",0)
 	CheckNMVar(df+"CleverTotals",0) // Makes other MFCs adjust flows.
 	CheckNMVar(df+"liveCheck",0) // Live updates of flow rates
-	
+	CheckNMVar(df+"liveSend",0) // Live sending of commands
 	
 //	CheckNMvar(df+"Gain", 0) // create variable (also see Configurations.ipf)	
 	return 0
@@ -162,7 +163,7 @@ Function EnableControlLines()
 		SetVariable $MFCPrefix("MFCID"+num2str(i))  disable=(1-MFCActiveWave[i])
 		SetVariable $MFCPrefix("MaxFlow"+num2str(i)) disable=1-MFCActiveWave[i]
 		SetVariable $MFCPrefix("SetPoint"+num2str(i)) disable=1-MFCActiveWave[i]
-		ValDisplay $MFCPrefix("FlowRate"+num2str(i))  disable=1-MFCActiveWave[i]
+		SetVariable $MFCPrefix("FlowRate"+num2str(i)) disable=1+MFCActiveWave[i]
 	endfor
 End
 
@@ -220,7 +221,12 @@ Function MFCSetVarValidator (ctrlName,varNum,varStr,varName) : SetVariableContro
 		// Reduce Dilution flow rate to keep Total flow constant
 		SetPointWave[0]+=TotalSetPoint-computedTotal
 	endif
-	
+	NVAR liveSend=$(df+"liveSend")
+	if(liveSend)
+		print "Live send"
+		MFCSendCommands()
+	endif
+
 //	TotalSetPoint
 End
 
@@ -250,7 +256,7 @@ Function MakeMFC() // create controls that will begin with appropriate prefix
 	endif
 
 
-	NVAR liveCheck=$(df+"liveCheck")
+	NVAR liveCheck=$(df+"liveCheck"), liveSend=$(df+"liveSend")
 
 	DoWindow /F NMPanel
 	
@@ -268,6 +274,9 @@ Function MakeMFC() // create controls that will begin with appropriate prefix
 
 	Checkbox $MFCPrefix("MFCSetLiveCheck"), pos={x0-20,y0+2*yinc}, title="Continuous polling", size={20,20}, proc=MFCSetLiveCheck, fsize=12
 	Checkbox $MFCPrefix("MFCSetLiveCheck"), help = {"Continuous polling of MFC status"}, proc = MFCSetLiveCheck,value= liveCheck 
+
+	Checkbox $MFCPrefix("MFCSetLiveSendCheck"), pos={x0+130,y0+2*yinc}, title="Continuous send", size={20,20}, fsize=12
+	Checkbox $MFCPrefix("MFCSetLiveSendCheck"), help = {"Continuously sencd commands to MFC"}, value= liveSend, noproc
 
 //	Button $MFCPrefix("CheckStatus"), pos={x0,y0+0*yinc}, title="Check Flow Status", size={140,20}, proc=MFCButton
 //	Button $MFCPrefix("CheckStatus"),	help = {"Checks the current flow reading and set point for the active MFCs."}
@@ -288,46 +297,17 @@ Function MakeMFC() // create controls that will begin with appropriate prefix
 		SetVariable $MFCPrefix("MFCID"+num2str(i)) size={30,20}, value=::Packages:MFC:MFCIDWave[i],pos={x0+10,ypos},title=" ", fsize=12
 		SetVariable $MFCPrefix("MaxFlow"+num2str(i)) size={60,20},value=::Packages:MFC:MaxFlowWave[i],pos={x0+50,ypos}, title=" ",limits={0,2000,500}, fsize=12
 		SetVariable $MFCPrefix("SetPoint"+num2str(i)) size={60,20},value=::Packages:MFC:SetPointWave[i],pos={x0+120,ypos}, title=" ",limits={0,2000,50}, fsize=12, proc=MFCSetVarValidator
-		ValDisplay $MFCPrefix("FlowRate"+num2str(i)) , fsize=12, value=#root:Packages:MFC:FlowWave[i],mode=2,pos={x0+190,ypos},size={30,20}
-		ValDisplay $MFCPrefix("FlowRatio"+num2str(i)) , fsize=12, mode=2,pos={x0+240,ypos}, size={50,20}, value=#root:Packages:MFC:SetPointWave[i]/root:Packages:MFC:TotalSetPoint
+		SetVariable $MFCPrefix("FlowRate"+num2str(i)) , fsize=12,pos={x0+190,ypos},size={60,20}, title=" ", value=::Packages:MFC:FlowWave[i],  noedit=1
+		//SetVariable $MFCPrefix("FlowRatio"+num2str(i)) , fsize=12, mode=2,pos={x0+240,ypos}, size={50,20}, disable=1,value=::Packages:MFC:FlowWave[i]/root:Packages:MFC:TotalSetPoint
 	endfor	
+//	ValDisplay $MFCPrefix("FlowRatio"+num2str(i)) value=#root:Packages:MFC:SetPointWave[2]/root:Packages:MFC:TotalSetPoint
+//	ValDisplay $MFCPrefix("FlowRatio"+num2str(i)) value=#root:Packages:MFC:SetPointWave[3]/root:Packages:MFC:TotalSetPoint
 
 	Checkbox $MFCPrefix("CleverTotals"), pos={x0-20,ypos+yinc+10+2}, title="Clever Totals", size={20,20}, fsize=12
 	Checkbox $MFCPrefix("CleverTotals"), help = {"Clever Totalling (adjusts flow rates to main total flow or same ratio)"}, variable=$(df+"CleverTotals")
 	SetVariable $MFCPrefix("TotalSetPoint"+num2str(i)) size={60,20},value=TotalSetPoint,pos={x0+120,ypos+yinc+10}, title=" ",limits={0,2000,50}, fsize=12, proc=MFCSetVarValidator
 	ValDisplay $MFCPrefix("TotalFlowRate"+num2str(i)) , fsize=12, value=#root:Packages:MFC:TotalFlowRate,mode=2,pos={x0+190,ypos}
 	
-//	Button $MFCPrefix("MFCModeRemote"), pos={x0-40,y0+2*yinc}, title="\\K(65535,0,0)Computer Control", size={120,20}, proc=MFCButton, help={"Control the camera from the computer ie using this tab"}
-//	Button $MFCPrefix("MFCModeJumper"), pos={x0+100,y0+2*yinc}, title="Jumper Control", size={120,20}, proc=MFCButton, help={"Control the camera using the jumpers on the camera body"}
-//	//Button $MFCPrefix("Function2"), pos={x0,y0+3*yinc}, title="My Function 2", size={200,20}, proc=MFCButton
-//
-//	Button $MFCPrefix("FullManual"), pos={x0-40,y0+4*yinc}, title="Manual Exposure", size={120,20}, proc=MFCButton
-//	Button $MFCPrefix("FullManual"),	help = {"Sets the camera shutter and gain modes to manual"}
-//	Button $MFCPrefix("FullAuto"), pos={x0+100,y0+4*yinc}, title="Auto Exposure", size={120,20}, proc=MFCButton
-//	Button $MFCPrefix("FullAuto"),	help = {"Sets the camera shutter and gain modes to auto"}
-//	
-//	PopupMenu $MFCPrefix("GainMode"), pos={x0+60,y0+6*yinc}, size={0,0}, bodyWidth=80, fsize=14, proc=MFCPopup
-//// 000 : 0 dB (AGC OFF)	001 : +6dB	002 : AGC ON	004 : Manual by m_gain
-//	PopupMenu $MFCPrefix("GainMode"), value="AGC OFF;+6dB;AGC ON;---;Manual;", title="Gain",help={"Set Gain mode. Must be manual for gain slider to function"}
-//	Slider $MFCPrefix("GainSlider"),  limits= {0,24,1 }, proc=MFCSlider, pos={x0+70,y0+6*yinc}, vert=0,size={24*6,50}
-//	
-////	SetVariable $MFCPrefix("GainValue"), title="Gain (dB)", pos={x0+90,y0+6*yinc}, size={110,50}, limits={0,24,1}
-////	SetVariable $MFCPrefix("GainValue"), value=$(df+"Gain"), proc=MFCSetVariable, fsize=14, help = {"Analogue Gain 0-24 dB; only relevant when AGC is set to manual"}
-//
-//	PopupMenu $MFCPrefix("ShutterMode"), pos={x0+80,y0+8*yinc}, size={0,0}, bodyWidth=80, fsize=12, proc=MFCPopup, title = "Shutter"
-////000 : ES OFF	001 : FL	002 : E..IRIS ON	004 : Manual by m_es
-//	PopupMenu $MFCPrefix("ShutterMode"), value="E IRIS OFF;Manual-MFCera;E IRIS ON;---;Manual;",help={"Shutter Mode; Choose Manual to adjust or E Iris On for auto, Manual-MFCera uses the potentiometer on the camera body"}
-//
-//	PopupMenu $MFCPrefix("MeteringArea"), pos={x0+200,y0+12*yinc}, size={0,0}, bodyWidth=80, fsize=12, proc=MFCPopup, title = "Auto Expos Metering Area"
-//	PopupMenu $MFCPrefix("MeteringArea"), value="Upper Corners;Upper Side;Lower Corners;Lower Side;Centre;Spot",help={"Different metering areas for the auto exposure mechanism"}
-//	
-//	PopupMenu $MFCPrefix("ShutterSpeed"), pos={x0+200,y0+8*yinc}, size={0,0}, bodyWidth=70, fsize=14, proc=MFCPopup, help={"Shutter Speed in reciprocal seconds"}
-//	PopupMenu $MFCPrefix("ShutterSpeed"), fsize=12,title="Speed",value="50;120;250;500;1000;2000;4000;10000;20000;30000"
-//
-//	//magnification = 256 / (X+1) 63 ... 255
-//	Slider $MFCPrefix("ZoomSlider"),  limits= {1,4,.1 }, proc=MFCSlider, pos={x0,y0+10*yinc}, vert=0,size={39*6,50}, title="Zoom"
-//	TitleBox  $MFCPrefix("ZoomTitle") , pos={x0-40,y0+10*yinc} ,title="Zoom"
-//	DrawText x0+10,10*yinc,"Zoom"
 End // MakeMFC
 
 //****************************************************************
@@ -419,124 +399,10 @@ Function MFCCall(fxn, select)
 		case "SendCommands":
 			return MFCSendCommands()
 		case "ZeroFlow":
-			return MFCZeroFlow()
-//		case "FullManual":
-//			return MFCFullAutoManual(1)
-//
-//		case "FullAuto":
-//			return MFCFullAutoManual(0)
-//
-//		case "GainMode":
-//			return MFCSetGenericAddress(1,snum-1,0,4) || MFCUpdateExposureModeButtons()
-//
-//		case "GainValue":
-//			return MFCSetGenericAddress(7,snum*10,0,240)
-//			
-//		case "ShutterMode":
-//			return MFCSetGenericAddress(2,snum-1,0,4) || MFCUpdateExposureModeButtons()
-//
-//		case "ShutterSpeed":
-//			return MFCSetShutterSpeed(snum)
-			
+			return MFCZeroFlow()	
 	endswitch
 	
 End // MFCCall
-
-//****************************************************************
-//****************************************************************
-//****************************************************************
-//Function MFCSetShutterSpeed(mode)
-//	Variable mode
-//	Variable speedVal
-//
-//	switch(mode)	// numeric switch
-//		case 1:		// 50
-//			speedVal=0
-//			break						// exit from switch
-//		case 2:		// 50
-//			speedVal=35
-//			break						// exit from switch
-//		case 3:		// 50
-//			speedVal=64
-//			break						// exit from switch
-//		case 4:		// 50
-//			speedVal=92
-//			break						// exit from switch
-//		case 5:		// 50
-//			speedVal=119
-//			break						// exit from switch
-//		case 6:		// 50
-//			speedVal=147
-//			break						// exit from switch
-//		case 7:		// 50
-//			speedVal=175
-//			break						// exit from switch
-//		case 8:		// 50
-//			speedVal=211
-//			break						// exit from switch
-//		case 9:		// 50
-//			speedVal=239
-//			break						// exit from switch
-//		case 10:		// 50
-//			speedVal=255
-//			break						// exit from switch
-//		default:							// optional default expression executed
-//			print "Unknown shutter speed"					// when no case matches
-//	endswitch
-//	MFCSetGenericAddress(8,speedVal,0,255)
-//	
-//End // MFCSetShutterSpeed
-
-//Function MFCFullAutoManual(mode)
-//	Variable mode // 0 = full auto, 1 = full manual	
-//
-//	// Check we have a valid mode
-//	if (mode<0  || mode>1)
-//		return (-1)
-//	endif
-//	
-//	if( mode<2)
-//		MFCSetGenericAddress(1,(mode+1)*2,0,4) // gain mode  
-//		MFCSetGenericAddress(2,(mode+1)*2,0,4) // shutter mode 				
-//	endif
-//	if( mode==0)
-//		// Update popups
-//		PopupMenu $MFCPrefix("GainMode"), mode=3
-//		PopupMenu $MFCPrefix("ShutterMode"), mode=3
-//	endif
-//	if(mode==1)
-//		// Update popups
-//		PopupMenu $MFCPrefix("GainMode"), mode=5
-//		PopupMenu $MFCPrefix("ShutterMode"), mode=5
-//	endif
-//	MFCUpdateExposureModeButtons()
-//End // MFCFullAutoManual
-
-//Function MFCUpdateExposureModeButtons()
-//	Variable gainMode,shutterMode
-//	
-//	ControlInfo $MFCPrefix("GainMode")
-//	gainMode=V_Value
-//	ControlInfo $MFCPrefix("ShutterMode")
-//	shutterMode=V_Value
-//	
-//	if(gainMode==5 && shutterMode==5)
-//		// both manual
-//		Button $MFCPrefix("FullManual"), title="\\K(65535,0,0)Manual Exposure"
-//		Button $MFCPrefix("FullAuto"), title="\\K(0,0,0)Auto Exposure"
-//	else
-//		if(gainMode==3 && shutterMode==3)
-//			// both auto
-//			Button $MFCPrefix("FullManual"), title="\\K(0,0,0)Manual Exposure"
-//			Button $MFCPrefix("FullAuto"), title="\\K(65535,0,0)Auto Exposure"
-//		else
-//			// neither of above
-//			Button $MFCPrefix("FullManual"), title="\\K(0,0,0)Manual Exposure"
-//			Button $MFCPrefix("FullAuto"), title="\\K(0,0,0)Auto Exposure"		
-//		endif
-//	endif		
-//	return (0)
-//End
 
 Function MFCWriteString(vdtstr)
 	String vdtstr
