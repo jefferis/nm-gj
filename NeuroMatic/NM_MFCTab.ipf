@@ -289,7 +289,7 @@ Function MakeMFC() // create controls that will begin with appropriate prefix
 	Checkbox $MFCPrefix("MFCSetLiveCheck"), help = {"Continuous polling of MFC status"}, proc = MFCSetLiveCheck,value= liveCheck 
 
 	Checkbox $MFCPrefix("MFCSetLiveSendCheck"), pos={x0+130,y0+2*yinc}, title="Continuous send", size={20,20}, fsize=12
-	Checkbox $MFCPrefix("MFCSetLiveSendCheck"), help = {"Continuously sencd commands to MFC"}, proc=MFCSetLiveCheck, value= liveSend
+	Checkbox $MFCPrefix("MFCSetLiveSendCheck"), help = {"Immediately send commands to MFC - otherwise press Send Commands"}, proc=MFCSetLiveCheck, value= liveSend
 
 //	Button $MFCPrefix("CheckStatus"), pos={x0,y0+0*yinc}, title="Check Flow Status", size={140,20}, proc=MFCButton
 //	Button $MFCPrefix("CheckStatus"),	help = {"Checks the current flow reading and set point for the active MFCs."}
@@ -301,10 +301,11 @@ Function MakeMFC() // create controls that will begin with appropriate prefix
 	
 	NVAR CleverTotals=$(df+"CleverTotals")
 
-	DrawText x0+10,y0+120,"MFCID"
-	DrawText x0+50,y0+120,"FullScale"
-	DrawText x0+120,y0+120,"SetPoint"
-	DrawText x0+190,y0+120,"FlowRate"
+	TitleBox $MFCPrefix("Text0") pos={x0+10,y0+105},title="MFCID",size={0,0},frame=0,fsize=12
+	TitleBox $MFCPrefix("Text1") pos={x0+50,y0+105},title="FullScale",size={0,0},frame=0,fsize=12
+	TitleBox $MFCPrefix("Text2") pos={x0+120,y0+105},title="SetPoint",size={0,0},frame=0,fsize=12
+	TitleBox $MFCPrefix("Text3") pos={x0+190,y0+105},title="FlowRate",size={0,0},frame=0,fsize=12
+
 	Variable i=0, ypos
 	for (i=0;i<kMFCMaxControllers;i+=1)
 		ypos=y0+100+(i+1)*yinc
