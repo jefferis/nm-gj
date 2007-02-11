@@ -102,14 +102,17 @@ Function CheckTestPulse() // declare global variables
 		return -1 // folder doesnt exist
 	endif
 	
+	NVAR AcqMode=$(df+"AcqMode")
+	WAVE tmpdevices=$(df+"tmpdevices")
+	
 	// Check to see if ITC is active:
-	CheckNMWave(df+"tmpdevices",1,0)
+	CheckNMWave(df+"tmpdevices",4,0)
+	// Need an integer wave (regular waves are double) NB this preserves values
+	Redimension /I $(df+"tmpdevices")
+//	Execute "ITC18GetDevices "+df+"tmpdevices"
 	Execute /Z "ITC18GetDevices "+df+"tmpdevices"
 	// will be non zero if there is a problem accessing the ITC
 	SetNMvar(df+"AcqMode",V_Flag) // set variable (also see Configurations.ipf)
-	
-	// Make sure that we have ADC range at +/- 10 V
-	Execute /Z "ITC18SetADCRange 10"
 	
 	// Create Global variables and waves
 	CheckNMvar(df+"TestPulseSize", -10) // create variable (also see Configurations.ipf)
@@ -126,6 +129,13 @@ Function CheckTestPulse() // declare global variables
 	
 	CheckNMvar(df+"ADCRange",10) // create variable (also see Configurations.ipf)
 	CheckNMvar(df+"PulseOn",1) // Default is to have test pulse on (when graph is started)
+	CheckNMvar(df+"ADCChannel",0) // create variable (also see Configurations.ipf)
+	CheckNMvar(df+"DACChannel",0) // create variable (also see Configurations.ipf)
+	NVAR ADCChannel = $(df+"ADCChannel")
+	NVAR ADCRange = $(df+"ADCRange")
+	
+	// Make sure that we have set ADC range appropriately (eg in case nclamp changed it)
+	Execute /Z "ITC18SetADCRange "+num2str(ADCChannel)+" "+num2str(ADCRange)
 	
 	CheckNMstr(df+"ClampMode","VC") // create variable (also see Configurations.ipf)
 	CheckNMstr(df+"Amplifier","AM2400") // create variable (also see Configurations.ipf)
@@ -248,6 +258,18 @@ Function TestPulseCall(fxn, select)
 		case "CloseTPGraph":
 			Execute /Z "DoWindow /K "+myTPWinName
 			return 0
+		case "StartStopTP":
+// GJ to fix - doesn't seem to be able to see controls
+//		Execute /Z "DoWindow /F "+myTPWinName
+//		ControlInfo  /W=$(myTPWinName) StartButton
+////		ControlInfo StartButton
+//			if(V_flag==0)
+//				// no Start button, so should stop
+//				StartButton("StopButton")
+//			else
+//				StartButton("StartButton")
+//			endif
+			return 0
 		case "MakeSweeperGraph":
 			if(strlen(WinList(mySweeperWinName,";",""))>0)
 				Execute "DoWindow /F "+mySweeperWinName
@@ -285,7 +307,10 @@ Function SingleAcq()
 	NVAR PulseOn = $(df+"PulseOn")
 	SVAR ClampMode = $(df+"ClampMode")
 	SVAR Amplifier = $(df+"Amplifier")
-
+	
+	NVAR ADCChannel= $(df+"ADCChannel") 
+	NVAR DACChannel = $(df+"DACChannel")
+	
 	// TestPulseSize comes in as either mV or pA
 	// But I will convert to A or V
 
@@ -319,7 +344,10 @@ Function SingleAcq()
 	try
 		if(AcqMode==0)
 			if(stringmatch(ClampMode,"VC") || stringmatch(Amplifier,"AM2400"))
-				Execute /Z "ITC18seq \"0\",\"0\""		                    		// 1 DAC and 1 ADC. First string is DACs. 2nd string is ADCs
+				String cmdstr
+				sprintf cmdstr, "ITC18seq \"%d\",\"%d\"", DACChannel, ADCChannel
+				Execute /Z cmdstr
+//				Execute /Z "ITC18seq \""+ADCChannel) 0\",\"0\""		                    		// 1 DAC and 1 ADC. First string is DACs. 2nd string is ADCs
 			else
 				// Use channel 1 for input / output
 				// (for Axoclamp 2B Bridge Mode)
@@ -535,7 +563,6 @@ Function StartButton(theTag)
 	NVAR ADCRange = $(df+"ADCRange")
 	NVAR AcqMode = $(df+"AcqMode")
 
-	print tryFPS
 	if( cmpstr(theTag,"StartButton")==0 )
 		Button $theTag,rename=StopButton,title="stop"
 
@@ -616,6 +643,10 @@ Window TestPulseGraph() : Graph
 //	DrawText 400,82,"Test Pulse /mV or pA"
 	Button StartButton,pos={25,14},size={50,20},proc=StartButton,title="start"
 	Button ResetButton,pos={90,14},size={50,20},proc=ButtonProc,title="reset"
+
+	SetVariable AcqChannel,pos={200,44},size={90,15},title="ADC Channel"
+	SetVariable AcqChannel,help={"Sets the channel from which the seal test response is read."}
+	SetVariable AcqChannel,limits={0,7,1},value= root:Packages:TestPulse:ADCChannel
 
 	CheckBox GraphModeBox,pos={200,75},size={79,14},proc=ModePop,title="Fast Graphing"
 	CheckBox GraphModeBox,help={"When checked the graph uses a special fast mode - among other things it does not autoscale"}
@@ -734,7 +765,7 @@ Function TPSingleSweep(timestep,maxChunkSize)
 	Wave outwave =$(df+"outwave")
 	outwave=SweeperStimWave  // nb this will truncate longoutwave if reqd
 		
-	SweeperSampWave=0; DoUpdate
+	SweeperSampWave=NaN; DoUpdate
 	
 	Execute "ITC18Stim "+df+"outwave"    // load first chunk of stim
 	writeOffset+=maxChunkSize
@@ -760,6 +791,10 @@ Function TPSingleSweep(timestep,maxChunkSize)
 		bytesRead=TPSweeperReadSingleChunk(df+"SweeperSampWave",readOffset,chunkSize,rScaleFactor)
 		
 		if(bytesRead>0)
+			if(readOffset==0)
+				// The first 3 values will be bogus because of the pipeline delay
+				SweeperSampWave[1,3]=NaN
+			endif
 			readOffset+=bytesRead
 			DoUpdate
 		endif

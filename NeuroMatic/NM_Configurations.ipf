@@ -325,6 +325,10 @@ Function CheckNMConfig(fname)
 			//NMConfigStr(fname, "F_Drug", "", "Experimental drugs")
 		
 			break
+		case "TestPulse":
+			NMConfigVar(fname, "ADCChannel", 0, "ADC Channel to read for Seal Test response data")
+			NMConfigVar(fname, "DACChannel", 0, "DAC Channel to which Seal Test output is sent")
+			break
 		case "MFC":
 			NMConfigWave(fname,"MaxFlowWave",kMFCMaxControllers,0,"Full Scale Value of Flow Meter")
 			NMConfigWave(fname,"SetPointWave",kMFCMaxControllers,0,"Set Point of Flow Meter")
@@ -332,6 +336,7 @@ Function CheckNMConfig(fname)
 			NMConfigTWave(fname,"MFCIDWave",kMFCMaxControllers,"","Serial ID of the Flow Meter (A-Z)")
 			NMConfigVar(fname, "TotalSetPoint", 0, "Total Desired Flow Rate")
 			NMConfigVar(fname, "CleverTotals", 0, "Clever Totalling (adjusts flow rates to main total flow or same ratio)")
+			break
 		default:
 		
 			return -1
