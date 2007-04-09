@@ -117,6 +117,7 @@ Function CheckTestPulse() // declare global variables
 	// Create Global variables and waves
 	CheckNMvar(df+"TestPulseSize", -10) // create variable (also see Configurations.ipf)
 	CheckNMvar(df+"resistance",0) // create variable (also see Configurations.ipf)
+	CheckNMvar(df+"accessResistance",0) // create variable (also see Configurations.ipf)
 	// Size of moving average for resistance
 	CheckNMvar(df+"SweeperWindow", 5) // create variable (also see Configurations.ipf)
 	NVAR SweeperWindow=$(df+"SweeperWindow")
@@ -162,6 +163,8 @@ Function CheckTestPulse() // declare global variables
 	endif	
 	
 	CheckNMtwave(df+"MyText", 5, "Anything") // text wave
+	//WAVE fit_testpulsein=$(df+"fit_testpulsein")
+	RemoveFromGraph /Z fit_testpulsein
 	
 	return 0
 	
@@ -302,6 +305,8 @@ Function SingleAcq()
 	
 	NVAR tps = $(df +"TestPulseSize")
 	NVAR resistance = $(df +"resistance")
+	NVAR accessResistance = $(df +"accessResistance")
+
 	NVAR AcqMode = $(df+"AcqMode")
 	NVAR ADCRange = $(df+"ADCRange")
 	NVAR PulseOn = $(df+"PulseOn")
@@ -459,7 +464,7 @@ Function SizePop(theTag,value,item) : PopupMenuControl
 	WaveLength=tdata[value-1]
 	Redimension/N=(WaveLength) testpulsein,testpulseout,itcin,itcout
 	KillWaves tdata
-	SetScale/P x 0,0.01,"ms", testpulsein,testpulseout
+	SetScale/P x 0,0.01e-3,"s", testpulsein,testpulseout
 	
 End
 
@@ -613,10 +618,17 @@ End
 
 Function ButtonProc(ctrlName) : ButtonControl
 	String ctrlName
-	if( cmpstr(ctrlName,"ResetButton")==0 )
-		CheckTestPulse()
-	endif
-
+	strswitch(ctrlName)	// string switch
+		case "ResetButton":		// execute if case matches expression
+			CheckTestPulse()
+			break						// exit from switch
+		case "FitButton":		// execute if case matches expression
+			TPFitTransient()
+			break
+	endswitch
+//	if ( cmpstr(ctrlName,"ResetButton")==0 )
+//		CheckTestPulse()
+//	endif
 End
 
 
@@ -641,8 +653,9 @@ Window TestPulseGraph() : Graph
 	DrawText 400,31,"Pulse Rate /Hz"
 //	SetDrawEnv textxjust= 1, fsize=10
 //	DrawText 400,82,"Test Pulse /mV or pA"
-	Button StartButton,pos={25,14},size={50,20},proc=StartButton,title="start"
-	Button ResetButton,pos={90,14},size={50,20},proc=ButtonProc,title="reset"
+	Button StartButton,pos={15,14},size={45,20},proc=StartButton,title="start"
+	Button ResetButton,pos={65,14},size={45,20},proc=ButtonProc,title="reset"
+	Button FitButton,pos={115,14},size={45,20},proc=ButtonProc,title="Fit"
 
 	SetVariable AcqChannel,pos={200,44},size={90,15},title="ADC Channel"
 	SetVariable AcqChannel,help={"Sets the channel from which the seal test response is read."}
@@ -684,7 +697,7 @@ Window TestPulseGraph() : Graph
 	PopupMenu Amplifier,pos={675,77},size={94,20},proc=AmplifierPop,title="Amplifier"
 	PopupMenu Amplifier,mode=3,popvalue="AM2400",value= "AM2400;Axoclamp", help={"Choose the Amplifier"}
 
-	ValDisplay valdisp0,pos={173,13},size={151,24},title="R /M½",fSize=18
+	ValDisplay valdisp0,pos={175,13},size={151,24},title="R /M½",fSize=18
 	ValDisplay valdisp0,format="%07.2f",frame=2
 	ValDisplay valdisp0,limits={0,1000,0},barmisc={0,200},bodyWidth= 92
 	ValDisplay valdisp0,value= #"root:Packages:TestPulse:resistance"
@@ -744,7 +757,55 @@ Function TPSweeperReadSingleChunk(inwavename,offset,chunkSize,scaleFactor)
 	endif
 	return 0
 End
+Function TPFitTransient ()
+	// Function to fit first transient of current test pulse sweep
+	String df = TestPulseDF()
 
+	// don't print commands to the command line
+	silent 1									
+	Wave testpulsein= $(df+"testpulsein")
+	PauseUpdate
+	
+	NVAR tps = $(df +"TestPulseSize")
+	Variable cfitStart,cfitEnd,pulseStart,pulseEnd,pulseLastFifthStart;
+
+	switch(numpnts(testpulsein))	// numeric switch
+		case 1000:		// execute if case matches expression
+			cfitStart=267;cfitEnd=749
+			pulseStart=2.5e-3 //ie 2.5 ms
+			break						// exit from switch
+		case 5000:		// execute if case matches expression
+			cfitStart=1267;cfitEnd=3749
+			pulseStart=12.5e-3 //ie 12.5 ms
+			break
+		default:							// optional default expression executed
+			print "Must use wave of length 1000 or 5000"
+			return -1					// when no case matches
+	endswitch
+	pulseEnd=pulseStart*3
+	pulseLastFifthStart=pulseStart+4/5*(pulseEnd-pulseStart)
+	
+	Variable V_fitOptions = 4	// suppress progress window
+	Variable V_FitError = 0	// prevent abort on error
+
+//	CurveFit /N /Q exp_XOffset  testpulsein[cfitStart,cfitEnd] /D 
+	CurveFit /N /Q exp_XOffset  testpulsein[cfitStart,cfitEnd] /D 
+	WAVE W_coef
+	if (V_FitError == 0)
+		Variable Q,tau,Cm,Ra;
+		tau=W_coef[2]
+		// Assume that the last 1/5 of pulse just corresponds to Rm step
+	      Q=area(testpulsein,pulseStart,pulseEnd)- area(testpulsein,pulseLastFifthStart,pulseEnd)*5
+		// NB TestPulseSize will be in mV, so convert to V
+		Cm=Q/(tps*1e-3)
+		Ra=tau/Cm
+		printf "tau= %f ms; Q = %g pC; Cm = %g pF; Ra = %g MOhm\r", tau*1000, Q*1e12,  Cm*1e12, Ra*1e-6
+		// Don't actually know how to prevent the fitted wave from being added to graph
+		ModifyGraph rgb(fit_testpulsein)=(2,39321,1)
+	else
+		print "Fitting error!"
+	endif
+End
 Function TPSingleSweep(timestep,maxChunkSize)
 	Variable timestep,maxChunkSize
 	Variable nTicks=round(timestep/1.25e-6)
