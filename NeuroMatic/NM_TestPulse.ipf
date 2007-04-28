@@ -164,7 +164,9 @@ Function CheckTestPulse() // declare global variables
 	
 	CheckNMtwave(df+"MyText", 5, "Anything") // text wave
 	//WAVE fit_testpulsein=$(df+"fit_testpulsein")
-	RemoveFromGraph /Z fit_testpulsein
+	if(  cmpstr(WinName(0, 3),"TestPulseGraph")==0)
+		RemoveFromGraph /Z fit_testpulsein
+	endif
 	
 	return 0
 	
