@@ -120,6 +120,9 @@ Function CheckMFC() // declare global variables
 	CheckNMVar(df+"CleverTotals",0) // Makes other MFCs adjust flows.
 	CheckNMVar(df+"liveCheck",0) // Live updates of flow rates
 	CheckNMVar(df+"liveSend",0) // Live sending of commands
+	CheckNMStr(df+"MFCSerialPortName","KeySerial1") 
+	VDTGetPortList2
+	SetNMStr(df+"SerialPortList",S_VDT)	
 	
 //	CheckNMvar(df+"Gain", 0) // create variable (also see Configurations.ipf)	
 	return 0
@@ -270,6 +273,7 @@ Function MakeMFC() // create controls that will begin with appropriate prefix
 
 
 	NVAR liveCheck=$(df+"liveCheck"), liveSend=$(df+"liveSend")
+	SVAR MFCSerialPortName=$(df+"MFCSerialPortName")
 
 	DoWindow /F NMPanel
 	
@@ -328,6 +332,10 @@ Function MakeMFC() // create controls that will begin with appropriate prefix
 	Checkbox $MFCPrefix("CleverTotals"), help = {"Clever Totalling (adjusts flow rates to main total flow or same ratio)"}, variable=$(df+"CleverTotals")
 	SetVariable $MFCPrefix("TotalSetPoint"+num2str(i)) size={60,20},value=TotalSetPoint,pos={x0+120,ypos+yinc+10}, title=" ",limits={0,2000,50}, fsize=12, proc=MFCSetVarValidator
 	ValDisplay $MFCPrefix("TotalFlowRate"+num2str(i)) , fsize=12, value=#root:Packages:MFC:TotalFlowRate,mode=2,pos={x0+190,ypos}
+
+	PopupMenu $MFCPrefix("MFCSerialPortNamePop"), pos={x0+250,ypos+yinc*3}, size={0,0}, bodyWidth=200, fsize=12, proc=MFCPopup, title = "Serial Port", help={"Name of the serial port"}
+	PopupMenu $MFCPrefix("MFCSerialPortNamePop"), value=#root:Packages:MFC:SerialPortList
+	PopupMenu $MFCPrefix("MFCSerialPortNamePop"), popvalue=MFCSerialPortName
 	
 End // MakeMFC
 
@@ -344,9 +352,7 @@ Function MFCPopup(ctrlName, popNum, popStr) : PopupMenuControl
 		popNum=0
 	endif
 
-	MFCCall(fxn,num2str(popNum))
-	//MFCUpdateExposureModeButtons()
-	//NMMainCall(popStr)
+	MFCCall(fxn,popStr)
 			
 End // MainTabPopup
 
@@ -422,6 +428,8 @@ Function MFCCall(fxn, select)
 			return MFCSendCommands()
 		case "ZeroFlow":
 			return MFCZeroFlow()	
+		case "MFCSerialPortNamePop":
+			return SetSerialPortName(select)
 	endswitch
 	
 End // MFCCall
@@ -550,7 +558,7 @@ End
 
 Function testMFCStatus()
 	STRUCT MFCStatusStruct ms2
-	MFCStatus("A",ms2)
+	MFCStatus("Z",ms2)
 	print "Actual Flow rate is "+num2str(ms2.MassFlow)
 End
 
@@ -598,14 +606,28 @@ print ParseMFCStatusString("+014.70 +025.00 +02.004 +02.004 2.004 Air ")
 //****************************************************************
 //****************************************************************
 
+Function SetSerialPortName(name)
+	String name
+	SVAR S_VDT
+	VDTOperationsPort2
+	String df = MFCDF()
+	if (cmpstr(S_VDT, name)!=0)
+		// set port
+		SetNMStr(df+"MFCSerialPortName", name)
+		MFCCommInit()
+	endif
+End
+
 Function MFCCommInit()
 	// NB It seems to be vital to call MFCComInit before attempting any serial port
 	// communication.
 	String df = MFCDF()
+	SVAR MFCSerialPortName = $(df+"MFCSerialPortName")
 	Print "MFCCommInit"
 	try
-		VDTOperationsPort2 'KeySerial1'; AbortOnRTE
-		VDTOpenPort2 'KeySerial1'; AbortOnRTE
+		VDTOperationsPort2 $MFCSerialPortName; AbortOnRTE
+//		VDTOperationsPort2 MFCSerialPortName; AbortOnRTE
+//		VDTOpenPort2 'KeySerial1'; AbortOnRTE
 		// Set communications parameters
 		VDT2 baud=19200 , stopbits=1,databits=8, parity=0, in=0, out=0
 		// Send a few returns to clear any pending commands

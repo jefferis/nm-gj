@@ -336,6 +336,7 @@ Function CheckNMConfig(fname)
 			NMConfigTWave(fname,"MFCIDWave",kMFCMaxControllers,"","Serial ID of the Flow Meter (A-Z)")
 			NMConfigVar(fname, "TotalSetPoint", 0, "Total Desired Flow Rate")
 			NMConfigVar(fname, "CleverTotals", 0, "Clever Totalling (adjusts flow rates to main total flow or same ratio)")
+			NMConfigStr(fname, "MFCSerialPortName", "KeySerial1", "Name of the Serial port to communicate with MFC e.g. COM1")
 			break
 		default:
 		
