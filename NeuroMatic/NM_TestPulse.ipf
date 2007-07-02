@@ -328,17 +328,23 @@ Function SingleAcq()
 		if(stringmatch(Amplifier,"AM2400"))	
 			// Amplifier Gain (1-100) * Raw Headstage gain (100mV/nA)
 			SignalGain=10*100e-3*1e9 // 100*1e9 mV/A probe gain 	
-		else
+		elseif(stringmatch(Amplifier,"Axoclamp"))	
 			// Axoclamp
 			SignalGain=100e-3*1e9 // 100*1e9 mV/A probe gain 
+		elseif(stringmatch(Amplifier,"Multiclamp"))	
+			SignalGain=500e-3*1e9 // 500*1e9 mV/A probe gain 
 		endif
 	else
 		lev=tps*1e-12 // convert from pA to A
 		if(stringmatch(Amplifier,"AM2400"))		
 			CommandGain=5*100e6 // AM2400 IClamp cmd gain in Probe Low with 100 MOhm headstage
 			SignalGain=10// 10V / V signal gain  (range 1-100, all on amplifier)
-		else
+		elseif(stringmatch(Amplifier,"Axoclamp"))	
+			// Axoclamp
 			CommandGain=1e9 // (1nA/V of cmd signal => 1/1e-9=1e9)
+			SignalGain=10 // 10V / V signal gain
+		elseif(stringmatch(Amplifier,"Multiclamp"))	
+			CommandGain=1/(400e-12) // (400 pA/V of cmd signal => 1/400e-12=2.5e9)
 			SignalGain=10 // 10V / V signal gain
 		endif
 	endif
@@ -350,8 +356,8 @@ Function SingleAcq()
 	Variable AcqFailed=0
 	try
 		if(AcqMode==0)
-			if(stringmatch(ClampMode,"VC") || stringmatch(Amplifier,"AM2400"))
-				String cmdstr
+			String cmdstr
+			if(stringmatch(ClampMode,"VC") || stringmatch(Amplifier,"AM2400") || stringmatch(Amplifier,"Multiclamp"))
 				sprintf cmdstr, "ITC18seq \"%d\",\"%d\"", DACChannel, ADCChannel
 				Execute /Z cmdstr
 //				Execute /Z "ITC18seq \""+ADCChannel) 0\",\"0\""		                    		// 1 DAC and 1 ADC. First string is DACs. 2nd string is ADCs
@@ -477,6 +483,7 @@ Function ADCPop(theTag,value,item) : PopupMenuControl
 	String df = TestPulseDF()
 	NVAR ADCRange = $(df+"ADCRange")
 	NVAR AcqMode = $(df+"AcqMode")
+	NVAR ADCChannel = $(df+"ADCChannel")
 	
 	switch(value)	// numeric switch
 		case 1:		// execute if case matches expression
@@ -495,6 +502,9 @@ Function ADCPop(theTag,value,item) : PopupMenuControl
 	// Now change the range
 	try
 		if(AcqMode==0)
+			if (ADCChannel>1)
+				Execute /Z "ITC18SetADCRange "+num2str(ADCChannel)+","+num2str(ADCRange)
+			endif
 			Execute /Z "ITC18SetADCRange 0,"+num2str(ADCRange)
 			AbortOnValue V_Flag!=0,0
 			Execute /Z "ITC18SetADCRange 1,"+num2str(ADCRange)
@@ -697,7 +707,7 @@ Window TestPulseGraph() : Graph
 	PopupMenu ClampMode,mode=3,popvalue="VC",value= "VC;IC", help={"Amplifier Mode - either Voltage Clamp or Current Clamp"}
 
 	PopupMenu Amplifier,pos={675,77},size={94,20},proc=AmplifierPop,title="Amplifier"
-	PopupMenu Amplifier,mode=3,popvalue="AM2400",value= "AM2400;Axoclamp", help={"Choose the Amplifier"}
+	PopupMenu Amplifier,mode=3,popvalue="AM2400",value= "AM2400;Axoclamp;Multiclamp", help={"Choose the Amplifier"}
 
 	ValDisplay valdisp0,pos={175,13},size={151,24},title="R /M½",fSize=18
 	ValDisplay valdisp0,format="%07.2f",frame=2
