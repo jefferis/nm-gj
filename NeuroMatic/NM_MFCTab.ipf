@@ -330,11 +330,17 @@ Function MakeMFC() // create controls that will begin with appropriate prefix
 
 	Checkbox $MFCPrefix("CleverTotals"), pos={x0-20,ypos+yinc+10+2}, title="Clever Totals", size={20,20}, fsize=12
 	Checkbox $MFCPrefix("CleverTotals"), help = {"Clever Totalling (adjusts flow rates to main total flow or same ratio)"}, variable=$(df+"CleverTotals")
-	SetVariable $MFCPrefix("TotalSetPoint"+num2str(i)) size={60,20},value=TotalSetPoint,pos={x0+120,ypos+yinc+10}, title=" ",limits={0,2000,50}, fsize=12, proc=MFCSetVarValidator
-	ValDisplay $MFCPrefix("TotalFlowRate"+num2str(i)) , fsize=12, value=#root:Packages:MFC:TotalFlowRate,mode=2,pos={x0+190,ypos}
+	SetVariable $MFCPrefix("TotalSetPoint") size={60,20},value=TotalSetPoint,pos={x0+120,ypos+yinc+10}, title=" ",limits={0,2000,50}, fsize=12, proc=MFCSetVarValidator
+	// GJ 2007-12-14 Quoted ValDisplay value to fix complaints in Igor 6
+	
+
+	ValDisplay $MFCPrefix("TotalFlowRate"+num2str(i)) , fsize=12, value=#"sum(root:Packages:MFC:FlowWave)",mode=2,pos={x0+190,ypos+yinc+10}
+//	ValDisplay $MFCPrefix("TotalFlowRate"+num2str(i)) , fsize=12, value=#"root:Packages:MFC:TotalFlowRate",mode=2,pos={x0+190,ypos+yinc+10}
+//	ValDisplay $MFCPrefix("TotalFlowRate") , fsize=12, value=#"root:Packages:MFC:TotalFlowRate",mode=2,pos={x0+190,ypos}
 
 	PopupMenu $MFCPrefix("MFCSerialPortNamePop"), pos={x0+250,ypos+yinc*3}, size={0,0}, bodyWidth=200, fsize=12, proc=MFCPopup, title = "Serial Port", help={"Name of the serial port"}
-	PopupMenu $MFCPrefix("MFCSerialPortNamePop"), value=#root:Packages:MFC:SerialPortList
+	// GJ 2007-12-14 Quoted ValDisplay value to fix complaints in Igor 6
+	PopupMenu $MFCPrefix("MFCSerialPortNamePop"), value=#"root:Packages:MFC:SerialPortList"
 	PopupMenu $MFCPrefix("MFCSerialPortNamePop"), popvalue=MFCSerialPortName
 	
 End // MakeMFC
