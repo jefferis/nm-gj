@@ -646,3 +646,56 @@ Function MFCCommInit()
 	SetNMvar(df+"SerialCommState",0)
 	return 0
 End // MFCCommInit
+
+Function MFCRecordSetPoint(mode)
+	Variable mode // (0) run fxn (1) config fxn (-1) kill fxn
+	
+	// Figure out flow set points of current MFCs and record to notes
+	// For now just do this as a single note
+
+	String cdf = ClampDF(), sdf = StimDF()
+	
+	if (mode == 1)
+		MFCRecordSetPointConfig()
+		return 0
+	elseif (mode == -1)
+		return 0
+	endif
+	
+	STRUCT MFCStatusStruct msZ
+	STRUCT MFCStatusStruct msA
+	MFCStatus("Z",msZ)
+	MFCStatus("A",msA)
+	
+	String notestr
+	sprintf notestr, "MFC Set Points: Z=%.1f A=%.1f",msZ.MassFlowCmd,msA.MassFlowCmd
+	NotesAddNote(notestr)
+	
+End
+End // Rstep
+
+//****************************************************************
+//****************************************************************
+//****************************************************************
+
+Function MFCRecordSetPointConfig()
+	Variable MFCdecrement
+	Variable MFCminimum, MFCmaximum
+
+	String cdf = ClampDF(), sdf = StimDF()
+	
+	// FIXME - actually use this information to select channels
+	// and also set the default to the currently active channels
+	// and perhaps also check that we can talk to them!
+	String MFCChannels = StrVarOrDefault(sdf+"MFCChannels", "Z A")
+	
+	Prompt MFCChannels, "MFC Channels to record"
+	DoPrompt "Supply MFC Channels to record in notes", MFCChannels
+	
+	if (V_flag == 1)
+		return 0 // cancel
+	endif
+		
+	SetNMStr(sdf+"MFCChannels", MFCChannels)
+End // RstepConfig
+
