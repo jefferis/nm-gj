@@ -32,13 +32,16 @@ Function ITCconfig(aboard)
 	String cdf = ClampDF()
 	
 	// GJ according to Telly G.  Reset is not required
-	// However this reset is only called when checking the board so I guess it can stanf
+	// However this reset is only called when checking the board so I guess it can stand
 	// It would probably be fine to substitute another quicker function call
-	// Execute /Z aboard + "Reset" // attemp to reset ITC board
+	Execute /Z aboard + "Reset" // attemp to reset ITC board
+	make/I /O /n=1 $(cdf+"ITCWriteAvailStatusWave") 
+	Execute /Z aboard + "WriteAvailable "+cdf+"ITCWriteAvailStatusWave"
+	WAVE ITCWriteAvailStatusWave = $(cdf+"ITCWriteAvailStatusWave")
 
 	//print("GetDevices" + cdf+"ITCDevices")
-	make /I /O /n=4 $(cdf+"ITCDevices")
-	Execute /Z aboard + "GetDevices " + cdf+"ITCDevices" // See if there is an attached ITC18
+	//make /I /O /n=4 $(cdf+"ITCDevices")
+	//Execute /Z aboard + "GetDevices " + cdf+"ITCDevices" // See if there is an attached ITC18
 	//Execute "print "+cdf+"ITCDevices"
 	if (V_flag != 0)
 		ClampError("unrecognized board : " + aboard)
@@ -46,6 +49,8 @@ Function ITCconfig(aboard)
 	else
 		SetNMVar(cdf+"BoardDriver", 0)
 		SetNMStr(cdf+"BoardList", "0, " + aboard + ";")
+		// GJ: added a new command to store the FIFO size
+		SetNMVar(cdf+"ITCFIFOSize",ITCWriteAvailStatusWave[0])	
 	endif
 	
 	return 0
@@ -77,12 +82,9 @@ Function ITCacquire(mode, savewhen, WaveLength, NumStimWaves, InterStimTime, Num
 	Variable mode // (0) preview (1) record (-1) test timers
 	Variable savewhen // (0) never (1) after (2) while
 	Variable WaveLength, NumStimWaves, InterStimTime, NumStimReps, InterRepTime
-	
-	//GJ My FIFO is 1024 kb long 
-//	Variable sizeFIFO = 256000
-	Variable sizeFIFO = 1048576
-	
+		
 	String cdf = ClampDF(), sdf = StimDF()
+	
 	
 	String aboard = StrVarOrDefault(cdf+"AcqBoard", "")
 	
@@ -93,6 +95,8 @@ Function ITCacquire(mode, savewhen, WaveLength, NumStimWaves, InterStimTime, Num
 	
 	Wave Avail2Read = $(cdf+"Avail2Read")
 	Wave Avail2Write = $(cdf+"Avail2Write")
+	// GJ Store FIFO size
+	Avail2Write[0]=NumVarOrDefault(cdf+"ITCFIFOSize", 256000)
 	
 	if (ITCupdateLists(NumStimWaves) == -1)
 		return -1 // bad input/output configuration
@@ -117,7 +121,7 @@ Function ITCacquire(mode, savewhen, WaveLength, NumStimWaves, InterStimTime, Num
 	
 	if (acqMode == 0) // test to see if short mode is possible
 	
-		if (pnts > sizeFIFO/2) // must be able to load at least two for fast episodic
+		if (pnts > Avail2Write[0]/2) // must be able to load at least two for fast episodic
 			ITCError("ITC Config Error", "epic precise mode not feasible. Please use episodic mode instead.")
 			return -1
 		endif
@@ -167,7 +171,10 @@ Function ITCAcqPrecise(mode, savewhen)
 	NVAR CurrentWave
 	
 	String aboard = StrVarOrDefault(cdf+"AcqBoard", "")
-	
+	//  GJ - fetch ITCFIFOSize
+	// Hmm actually have now stored it into Avail2Write
+	// Variable sizeFIFO = NumVarOrDefault(cdf+"ITCFIFOSize", 256000)
+
 	Variable NumStimWaves = NumVarOrDefault(sdf+"NumStimWaves", 0)
 	Variable NumStimReps = NumVarOrDefault(sdf+"NumStimReps", 0)
 	
@@ -312,18 +319,25 @@ Function ITCAcqPrecise(mode, savewhen)
 	endswitch
 	
 	do // preload output waves
-		
-		Execute aboard + "WriteAvailable " + cdf + "Avail2Write"
-		
-		// GJ commented out because it interrupts every new scan
-//		if ((firstwrite == 1) && (Avail2Write[0] <= outpnts))
-// 			ITCError("ITC Acq Fast Error", "not enough FIFO space.")
-// 			return -1
-// 		endif
+
 		
 		// GJ commented out because it interrupts every new scan
-		if ((stimtotal < nwaves) )
-//		if ((stimtotal < nwaves) && (Avail2Write[0] >= outpnts))
+		// GJ reinstated now that I have stored FIFO size in ITCconfig/ITCacquire
+//		if ((firstwrite == 1) && (sizeFIFO <= outpnts))
+		if (firstwrite == 1)
+			if  (Avail2Write[0] <= outpnts)
+	 			ITCError("ITC Acq Fast Error", "not enough FIFO space.")
+ 				return -1
+ 			endif
+ 		else
+ 			// only do this if this is not the firstwrite
+ 			Execute aboard + "WriteAvailable " + cdf + "Avail2Write"
+ 		endif
+		
+		// GJ commented out because it interrupts every new scan
+		// GJ reinstated now that I have stored FIFO size in ITCconfig/ITCacquire
+//		if ((stimtotal < nwaves) )
+		if ((stimtotal < nwaves) && (Avail2Write[0] >= outpnts))
 			
 			if (firstwrite == 1)
 				Execute aboard + "Stim " + outName
@@ -365,8 +379,9 @@ Function ITCAcqPrecise(mode, savewhen)
 		Execute aboard + "WriteAvailable " + cdf + "Avail2Write"
 		
 		// GJ commented out because it interrupts every new scan
-		if ((stimtotal < nwaves) )
-//		if ((stimtotal < nwaves) && (Avail2Write[0] > outpnts))
+		// GJ reinstated now that I have stored FIFO size in ITCconfig/ITCacquire		
+//		if ((stimtotal < nwaves) )
+		if ((stimtotal < nwaves) && (Avail2Write[0] > outpnts))
 			
 			Execute aboard + "StimAppend " + outName
 			
@@ -382,12 +397,14 @@ Function ITCAcqPrecise(mode, savewhen)
 			
 		endif
 		
+		// GJ TOFIX But what happens if stim is never called - because there is no stim wave
+		// Will ReadAvailable have correct value?
 		Execute aboard + "ReadAvailable " + cdf + "Avail2Read"
 		
 		// GJ commented out because it interrupts every new scan
-		if ((samptotal < nwaves) )
-//		if ((samptotal < nwaves) && (Avail2Read[0] > inpnts))
-
+		// GJ reinstated now that I have stored FIFO size in ITCconfig/ITCacquire
+//		if ((samptotal < nwaves) )
+		if ((samptotal < nwaves) && (Avail2Read[0] > inpnts))
 			if (firstread == 1)
 				Execute aboard + "Samp " + inName
 				firstread = 0
@@ -673,7 +690,8 @@ Function ITCAcqLong(mode, savewhen)
 	
 	// start acquisition
 	
-	//Execute aboard + "Reset"
+	// GJ removed reset
+	Execute aboard + "Reset"
 	
 	for (icnt = 0; icnt < ItemsInList(ADClist[0]); icnt += 1)
 		item = StringFromList(icnt, ADClist[0])
@@ -716,10 +734,11 @@ Function ITCAcqLong(mode, savewhen)
 			firstread = 1
 			firstsave = 1
 			
+			// GJ - what's going on here?
 			do
 			
 				Execute aboard + "WriteAvailable " + cdf + "Avail2Write"
-			
+				
 				// GJ This seems to be causing problems
 				if (firstwrite == 1)
 //				if ((firstwrite == 1) && (Avail2Write[0] > numpnts($outName)))
