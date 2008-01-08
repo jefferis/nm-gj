@@ -129,13 +129,15 @@ Function ITCacquire(mode, savewhen, WaveLength, NumStimWaves, InterStimTime, Num
 	SetNMvar(cdf+"InterStimTime", InterStimTime)
 	SetNMvar(cdf+"InterRepTime", InterRepTime)
 	
+	// GJ I think these are mislabelled - see StimModePopup
+	// the correct labelling makes sense (ie epic precise calls AcqPrecise)
 	switch(acqMode)
-		case 0: // episodic
-		case 1: // continuous
+		case 0: // episodic // GJ epic precise 
+		case 1: // continuous 
 			ITCAcqPrecise(mode, savewhen)
 			break
-		case 2: // episodic precise
-		case 3: // triggered
+		case 2: // episodic precise // GJ episodic
+		case 3: // triggered 
 			ITCAcqLong(mode, savewhen)
 			break
 	endswitch 
@@ -871,7 +873,7 @@ Function ITCprescan()
 		tempWave = 0
 		
 		Execute aboard + "SetADCRange " + chanstr + "," + ITCrangeStr(gain)
-		// GJ simplify the whole acquiistion step and remove a bug in which output was being sent to the Channel 0
+		// GJ simplify the whole acquisition step and remove a bug in which output was being sent to the Channel 0
 		Execute aboard + "Seq \"0\",\"" + chanstr + "\""
 		// Note that flags = 0 which means that no output is actually sent		
 		Execute aboard + "StimAndSample " + inName+","+inName+ ","+num2str(period) + ", 0, 0" 
@@ -891,20 +893,18 @@ Function ITCprescan()
 //		
 ////		Execute aboard + "stopacq"
 //		
+		// GJ - should this be -6 or -3 
+		// ie is the idea to remove 6 from the front  or to top and tail 3 at each end?
 		Rotate -6, tempWave
-		
 		Redimension /N=(npnts) tempWave
 		
 		tempWave /= (32768 / ITCrange(gain)) // convert to volts
 		
 		if ((numtype(config) == 0) && (config >= 0))
-		
-			scale = ADCscale[config]
-			
+			scale = ADCscale[config]			
 			if ((numtype(scale) == 0) && (scale > 0))
 				tempWave /= scale
-			endif
-			
+			endif			
 		endif
 	
 	endfor
@@ -932,9 +932,10 @@ Function ITCread(chan, gain, npnts)
 	
 	Make /O/N=(npnts+garbage) CT_ITCread = 0
 	
+	// GJ rejigged this a little:	
 	Execute aboard + "SetADCRange " + chanstr + "," + ITCrangeStr(gain)
 	Execute aboard + "Seq \"0\",\"" + chanstr + "\""
-	// nb having flags=0 prevents any unfortunate output activity
+	// GJ nb having flags=0 prevents any unfortunate output activity
 	Execute aboard + "StimAndSample CT_ITCread,CT_ITCread,"+num2str(period) + ", 0, 0" 
 	
 	Wave CT_ITCread
@@ -1424,7 +1425,7 @@ Function ITCmixWaves(mixwname, nmix, wlist, tlist, npnts, ipnts, mixflag, pipede
 	numTTL = ItemsInList(tlist)
 
 // GJ: What on earth is this for?
-// We get sent a nice value of nptsand then this seems to overwrite it
+// We get sent a nice value of npts and then this seems to overwrite it
 	
 //	if (mixflag == 1)
 //		npnts = GetXStats("numpnts", wlist)
