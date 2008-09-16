@@ -34,11 +34,14 @@ Function ITCconfig(aboard)
 	// GJ according to Telly G.  Reset is not required
 	// However this reset is only called when checking the board so I guess it can stand
 	// It would probably be fine to substitute another quicker function call
-	// Execute /Z aboard + "Reset" // attemp to reset ITC board
+	Execute /Z aboard + "Reset" // attemp to reset ITC board
+	make/I /O /n=1 $(cdf+"ITCWriteAvailStatusWave") 
+	Execute /Z aboard + "WriteAvailable "+cdf+"ITCWriteAvailStatusWave"
+	WAVE ITCWriteAvailStatusWave = $(cdf+"ITCWriteAvailStatusWave")
 
 	//print("GetDevices" + cdf+"ITCDevices")
-	make /I /O /n=4 $(cdf+"ITCDevices")
-	Execute /Z aboard + "GetDevices " + cdf+"ITCDevices" // See if there is an attached ITC18
+	//make /I /O /n=4 $(cdf+"ITCDevices")
+	//Execute /Z aboard + "GetDevices " + cdf+"ITCDevices" // See if there is an attached ITC18
 	//Execute "print "+cdf+"ITCDevices"
 	if (V_flag != 0)
 		//ClampError("unrecognized board : " + aboard)
@@ -46,6 +49,8 @@ Function ITCconfig(aboard)
 	else
 		SetNMVar(cdf+"BoardDriver", 0)
 		SetNMStr(cdf+"BoardList", aboard + ";")
+		// GJ: added a new command to store the FIFO size
+		SetNMVar(cdf+"ITCFIFOSize",ITCWriteAvailStatusWave[0])	
 	endif
 	
 	return 0
@@ -95,12 +100,9 @@ Function ITCacquire(mode, savewhen, WaveLength, NumStimWaves, InterStimTime, Num
 	Variable mode // (0) preview (1) record (-1) test timers
 	Variable savewhen // (0) never (1) after (2) while
 	Variable WaveLength, NumStimWaves, InterStimTime, NumStimReps, InterRepTime
-	
-	//GJ My FIFO is 1024 kb long 
-//	Variable sizeFIFO = 256000
-	Variable sizeFIFO = 1048576
-	
+		
 	String cdf = ClampDF(), sdf = StimDF()
+	
 	
 	String aboard = StrVarOrDefault(cdf+"AcqBoard", "")
 	
@@ -109,8 +111,10 @@ Function ITCacquire(mode, savewhen, WaveLength, NumStimWaves, InterStimTime, Num
 	
 	Make /I/O/N=1 $(cdf+"Avail2Read"), $(cdf+"Avail2Write")
 	
-	Wave Avail2Read = $cdf+"Avail2Read"
-	Wave Avail2Write = $cdf+"Avail2Write"
+	Wave Avail2Read = $(cdf+"Avail2Read")
+	Wave Avail2Write = $(cdf+"Avail2Write")
+	// GJ Store FIFO size
+	Avail2Write[0]=NumVarOrDefault(cdf+"ITCFIFOSize", 256000)
 	
 	if (ITCupdateLists(NumStimWaves) == -1)
 		return -1 // bad input/output configuration
@@ -135,7 +139,7 @@ Function ITCacquire(mode, savewhen, WaveLength, NumStimWaves, InterStimTime, Num
 	
 	if (acqMode == 0) // test to see if short mode is possible
 	
-		if (pnts > sizeFIFO/2) // must be able to load at least two for fast episodic
+		if (pnts > Avail2Write[0]/2) // must be able to load at least two for fast episodic
 			ITCError("ITC Config Error", "epic precise mode not feasible. Please use episodic mode instead.")
 			return -1
 		endif
@@ -183,7 +187,10 @@ Function ITCAcqPrecise(mode, savewhen)
 	NVAR CurrentWave
 	
 	String aboard = StrVarOrDefault(cdf+"AcqBoard", "")
-	
+	//  GJ - fetch ITCFIFOSize
+	// Hmm actually have now stored it into Avail2Write
+	// Variable sizeFIFO = NumVarOrDefault(cdf+"ITCFIFOSize", 256000)
+
 	Variable NumStimWaves = NumVarOrDefault(sdf+"NumStimWaves", 0)
 	Variable NumStimReps = NumVarOrDefault(sdf+"NumStimReps", 0)
 	
@@ -272,22 +279,22 @@ Function ITCAcqPrecise(mode, savewhen)
 		if (WaveExists($bdf+"ADCtgain") == 1)
 	
 			Wave ADCtgain = $bdf+"ADCtgain"
+		
+		for (config = 0; config < numpnts(ADCtgain); config += 1) // loop thru configs
+		
+			if (numtype(ADCtgain[config]) == 0)
 			
-			for (config = 0; config < numpnts(ADCtgain); config += 1) // loop thru configs
-			
-				if (numtype(ADCtgain[config]) == 0)
-				
 					tgain = ClampTgainValue(GetDataFolder(1), config, -1)
-					
-					if (tgain == -1)
-						tGainConfig = 0 // bad value
-					else
+				
+				if (tgain == -1)
+					tGainConfig = 0 // bad value
+				else
 						SetNMvar("CT_Tgain"+num2str(config)+"_avg", tgain) // save in data folder
-					endif
-					
 				endif
 				
-			endfor
+			endif
+			
+		endfor
 		
 		endif
 		
@@ -330,7 +337,7 @@ Function ITCAcqPrecise(mode, savewhen)
 		gain = str2num(StringFromList(2,item,","))
 		
 		if (ITC_SetRange == 1)
-			Execute aboard + "SetADCRange " + chanstr + "," + ITCrangeStr(gain)
+		Execute aboard + "SetADCRange " + chanstr + "," + ITCrangeStr(gain)
 		endif
 		
 	endfor
@@ -343,24 +350,31 @@ Function ITCAcqPrecise(mode, savewhen)
 			if (ITC18_SeqExtraParameter == 1)
 				Execute aboard + "Seq \"" + ITCoutList + "\",\"" + ITCinList + "\",1"
 			else
-				Execute aboard + "Seq \"" + ITCoutList + "\",\"" + ITCinList + "\""
+			Execute aboard + "Seq \"" + ITCoutList + "\",\"" + ITCinList + "\""
 			endif
 			break
 	endswitch
 	
 	do // preload output waves
-		
-		Execute aboard + "WriteAvailable " + cdf + "Avail2Write"
-		
-		// GJ commented out because it interrupts every new scan
-//		if ((firstwrite == 1) && (Avail2Write[0] <= outpnts))
-// 			ITCError("ITC Acq Fast Error", "not enough FIFO space.")
-// 			return -1
-// 		endif
+
 		
 		// GJ commented out because it interrupts every new scan
-		if ((stimtotal < nwaves) )
-//		if ((stimtotal < nwaves) && (Avail2Write[0] >= outpnts))
+		// GJ reinstated now that I have stored FIFO size in ITCconfig/ITCacquire
+//		if ((firstwrite == 1) && (sizeFIFO <= outpnts))
+		if (firstwrite == 1)
+			if  (Avail2Write[0] <= outpnts)
+	 			ITCError("ITC Acq Fast Error", "not enough FIFO space.")
+ 				return -1
+ 			endif
+ 		else
+ 			// only do this if this is not the firstwrite
+ 			Execute aboard + "WriteAvailable " + cdf + "Avail2Write"
+ 		endif
+		
+		// GJ commented out because it interrupts every new scan
+		// GJ reinstated now that I have stored FIFO size in ITCconfig/ITCacquire
+//		if ((stimtotal < nwaves) )
+		if ((stimtotal < nwaves) && (Avail2Write[0] >= outpnts))
 			
 			if (firstwrite == 1)
 				Execute aboard + "Stim " + outName
@@ -402,8 +416,9 @@ Function ITCAcqPrecise(mode, savewhen)
 		Execute aboard + "WriteAvailable " + cdf + "Avail2Write"
 		
 		// GJ commented out because it interrupts every new scan
-		if ((stimtotal < nwaves) )
-//		if ((stimtotal < nwaves) && (Avail2Write[0] > outpnts))
+		// GJ reinstated now that I have stored FIFO size in ITCconfig/ITCacquire		
+//		if ((stimtotal < nwaves) )
+		if ((stimtotal < nwaves) && (Avail2Write[0] > outpnts))
 			
 			Execute aboard + "StimAppend " + outName
 			
@@ -419,12 +434,14 @@ Function ITCAcqPrecise(mode, savewhen)
 			
 		endif
 		
+		// GJ TOFIX But what happens if stim is never called - because there is no stim wave
+		// Will ReadAvailable have correct value?
 		Execute aboard + "ReadAvailable " + cdf + "Avail2Read"
 		
 		// GJ commented out because it interrupts every new scan
-		if ((samptotal < nwaves) )
-//		if ((samptotal < nwaves) && (Avail2Read[0] > inpnts))
-
+		// GJ reinstated now that I have stored FIFO size in ITCconfig/ITCacquire
+//		if ((samptotal < nwaves) )
+		if ((samptotal < nwaves) && (Avail2Read[0] > inpnts))
 			if (firstread == 1)
 				Execute aboard + "Samp " + inName
 				firstread = 0
@@ -506,7 +523,7 @@ Function ITCAcqPrecise(mode, savewhen)
 			endfor
 			
 			cancel = ClampAcquireNext(mode, nwaves)
-			
+	
 			savecnt += 1
 			
 			if (savecnt >= NumStimWaves)
@@ -730,7 +747,7 @@ Function ITCAcqLong(mode, savewhen)
 		gain = str2num(StringFromList(2,item,","))
 		
 		if (ITC_SetRange == 1)
-			Execute aboard + "SetADCRange " + chanstr + "," + ITCrangeStr(gain)
+		Execute aboard + "SetADCRange " + chanstr + "," + ITCrangeStr(gain)
 		endif
 		
 	endfor
@@ -743,7 +760,7 @@ Function ITCAcqLong(mode, savewhen)
 			if (ITC18_SeqExtraParameter == 1)
 				Execute aboard + "Seq \"" + ITCoutList + "\",\"" + ITCinList + "\",1"
 			else
-				Execute aboard + "Seq \"" + ITCoutList + "\",\"" + ITCinList + "\""
+			Execute aboard + "Seq \"" + ITCoutList + "\",\"" + ITCinList + "\""
 			endif
 			break
 	endswitch
@@ -764,10 +781,11 @@ Function ITCAcqLong(mode, savewhen)
 			firstread = 1
 			firstsave = 1
 			
+			// GJ - what's going on here?
 			do
 			
 				Execute aboard + "WriteAvailable " + cdf + "Avail2Write"
-			
+				
 				// GJ This seems to be causing problems
 				if (firstwrite == 1)
 //				if ((firstwrite == 1) && (Avail2Write[0] > numpnts($outName)))
@@ -930,7 +948,7 @@ Function ITCprescan()
 		tempWave = 0
 		
 		if (ITC_SetRange == 1)
-			Execute aboard + "SetADCRange " + chanstr + "," + ITCrangeStr(gain)
+		Execute aboard + "SetADCRange " + chanstr + "," + ITCrangeStr(gain)
 		endif
 	
 		strswitch(aboard)
@@ -943,7 +961,7 @@ Function ITCprescan()
 				if (ITC18_SeqExtraParameter == 1)
 					Execute aboard + "Seq \"0\",\"" + chanstr + "\",1"
 				else
-					Execute aboard + "Seq \"0\",\"" + chanstr + "\""
+		Execute aboard + "Seq \"0\",\"" + chanstr + "\""
 				endif
 				// Note that flags = 0 which means that no output is actually sent
 				Execute aboard + "StartAcq " + num2str(period) + ", 0, 0"
@@ -955,19 +973,15 @@ Function ITCprescan()
 		Execute aboard + "stopacq"
 		
 		Rotate -6, tempWave
-		
 		Redimension /N=(npnts) tempWave
 		
 		tempWave /= (32768 / ITCrange(gain)) // convert to volts
 		
 		if ((numtype(config) == 0) && (config >= 0))
-		
-			scale = ADCscale[config]
-			
+			scale = ADCscale[config]			
 			if ((numtype(scale) == 0) && (scale > 0))
 				tempWave /= scale
-			endif
-			
+			endif			
 		endif
 	
 	endfor
@@ -1004,7 +1018,7 @@ Function ITCread(chan, gain, npnts)
 	endif
 	
 	if (ITC_SetRange == 1)
-		Execute aboard + "SetADCRange " + chanstr + "," + ITCrangeStr(gain)
+	Execute aboard + "SetADCRange " + chanstr + "," + ITCrangeStr(gain)
 	endif
 	
 	strswitch(aboard)
@@ -1017,7 +1031,7 @@ Function ITCread(chan, gain, npnts)
 			if (ITC18_SeqExtraParameter == 1)
 				Execute aboard + "Seq \"0\",\"" + chanstr + "\",1"
 			else
-				Execute aboard + "Seq \"0\",\"" + chanstr + "\""
+	Execute aboard + "Seq \"0\",\"" + chanstr + "\""
 			endif
 			// Note that flags = 0 which means that no output is actually sent
 			Execute aboard + "StartAcq " + num2str(period) + ", 0, 0"
@@ -1213,16 +1227,16 @@ Function ITCupdateLists(NumStimWaves) // check input/output configurations and c
 					//	item = wname + "," + num2str(ADCtgain[config]) + "," + num2str(gain)+ "," + num2str(50) + "," + num2str(-1)
 					//	alist2 = AddListItem(item, alist2, ";", inf) // save as pre-stim input
 					//endif
-				
+					
 				elseif (strsearch(modestr, "PreSamp=", 0) >= 0) // pre-sample
-				
+						
 					wname = "CT_" + WaveStrOrDefault(bdf+"ADCname", config, "")
 					mode = str2num(modestr[8, inf])
 					item = wname + "," + num2str(chan) + "," + num2str(gain) + "," + num2str(mode) + "," + num2str(config)
 					alist2 = AddListItem(item, alist2, ";", inf)
-					
+							
 				elseif (strsearch(modestr, "Tgain=", 0) >= 0) // telegraph gain
-				
+						
 					tgain = 1
 					gain = 1 // full scale
 					//mode = (-1 * mode - 100)
@@ -1441,32 +1455,32 @@ Function ITCmakeWaves(NumOuts, NumStimWaves, InterStimTime, NumStimReps, InterRe
 		
 		if (WaveExists($wname) == 0)
 		
-			switch(AcqMode)
-			
+		switch(AcqMode)
+		
 				case 0: // epic precise
-			
-					if (insertN >= pipe)
+		
+				if (insertN >= pipe)
 						error = ITCmixWaves(wname, NumOuts, wlist, tlist, stimPnts[wcnt], insertN, 1, pipe) // mix output waves, shift
-					else
-						ITCError("ITC Episodic Error", "inter-wave or inter-rep time too short. Try continuous acquisition.")
-						return -1
-					endif
-					
-					break
-					
-				case 1: // continuous
+				else
+					ITCError("ITC Episodic Error", "inter-wave or inter-rep time too short. Try continuous acquisition.")
+					return -1
+				endif
+				
+				break
+				
+			case 1: // continuous
 					error = ITCmixWaves(wname, NumOuts, wlist, tlist, stimPnts[wcnt], insertN, 1, 0) // mix output waves, no shift
-					break
-					
+				break
+				
 				case 2: // episodic
-				case 3: // triggered
+			case 3: // triggered
 					error = ITCmixWaves(wname, NumOuts, wlist, tlist, stimPnts[wcnt], insertN, 1, pipe)
-					break
-					
-				default:
-					error = -1
-					
-			endswitch
+				break
+				
+			default:
+				error = -1
+				
+		endswitch
 		
 		endif
 		
