@@ -90,6 +90,14 @@ Function KillTestPulse(what)
 
 End // KillTestPulse
 
+Function TestPulseConfigs()
+	String fname = "TestPulse"
+
+	NMConfigVar(fname, "ADCChannel", 0, "ADC Channel to read for Seal Test response data")
+	NMConfigVar(fname, "DACChannel", 0, "DAC Channel to which Seal Test output is sent")
+
+End // MyTabConfigs
+
 //****************************************************************
 //****************************************************************
 //****************************************************************
