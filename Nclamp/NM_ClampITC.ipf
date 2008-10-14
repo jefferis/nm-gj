@@ -65,7 +65,7 @@ Function ITCdebug()
 
 	String cdf = ClampDF()
 	
-	Variable ITC18_SeqExtraParameter = 1 // (0) no (1) yes
+	Variable ITC18_SeqExtraParameter = 0 // (0) no (1) yes
 	Variable ITC_ResetDuringAcquisition = 0 // (0) no (1) yes
 	Variable ITC_SetRange = 1 // (0) no (1) yes
 	
