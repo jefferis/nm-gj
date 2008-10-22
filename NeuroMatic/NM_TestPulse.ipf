@@ -333,7 +333,7 @@ Function SingleAcq()
 			SignalGain=100e-3*1e9 // 100*1e9 mV/A probe gain 
 		elseif(stringmatch(Amplifier,"Multiclamp"))	
 			//SignalGain=500e-3*1e9 // 500*1e9 mV/A probe gain 
-			SignalGain=5e-3*1e12 // 10*1e12 mV/A probe gain  (MC Gain =5)
+			SignalGain=2.5e-3*1e12 // 2.5*1e12 mV/A probe gain  (MC Gain =5)
 		endif
 	else
 		lev=tps*1e-12 // convert from pA to A
