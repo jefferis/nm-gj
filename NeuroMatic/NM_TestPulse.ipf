@@ -139,7 +139,7 @@ Function CheckTestPulse() // declare global variables
 	Execute /Z "ITC18SetADCRange "+num2str(ADCChannel)+" "+num2str(ADCRange)
 	
 	CheckNMstr(df+"ClampMode","VC") // create variable (also see Configurations.ipf)
-	CheckNMstr(df+"Amplifier","AM2400") // create variable (also see Configurations.ipf)
+	CheckNMstr(df+"Amplifier","Multiclamp") // create variable (also see Configurations.ipf)
 		
 	CheckNMvar(df+"fps", 0) // create variable (also see Configurations.ipf)
 	CheckNMvar(df+"tryFPS",15) // create variable (also see Configurations.ipf)
