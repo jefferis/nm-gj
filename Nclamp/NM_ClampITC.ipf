@@ -348,7 +348,8 @@ Function ITCAcqPrecise(mode, savewhen)
 			break
 		case "ITC18":
 			if (ITC18_SeqExtraParameter == 1)
-				Execute aboard + "Seq \"" + ITCoutList + "\",\"" + ITCinList + "\",1"
+				Execute aboard + "Seq \"" + ITCoutList + "\",\"" + ITCinList + "\""
+				// removed trailling,1 NYM Jan 26,2009
 			else
 			Execute aboard + "Seq \"" + ITCoutList + "\",\"" + ITCinList + "\""
 			endif
@@ -758,7 +759,8 @@ Function ITCAcqLong(mode, savewhen)
 			break
 		case "ITC18":
 			if (ITC18_SeqExtraParameter == 1)
-				Execute aboard + "Seq \"" + ITCoutList + "\",\"" + ITCinList + "\",1"
+				Execute aboard + "Seq \"" + ITCoutList + "\",\"" + ITCinList + "\""
+				// removed trailling,1 NYM Jan 26,2009
 			else
 			Execute aboard + "Seq \"" + ITCoutList + "\",\"" + ITCinList + "\""
 			endif
@@ -959,7 +961,8 @@ Function ITCprescan()
 				break
 			case "ITC18":
 				if (ITC18_SeqExtraParameter == 1)
-					Execute aboard + "Seq \"0\",\"" + chanstr + "\",1"
+					Execute aboard + "Seq \"0\",\"" + chanstr + "\""
+					// removed trailling,1 NYM Jan 26,2009
 				else
 		Execute aboard + "Seq \"0\",\"" + chanstr + "\""
 				endif
@@ -1029,7 +1032,8 @@ Function ITCread(chan, gain, npnts)
 			break
 		case "ITC18":
 			if (ITC18_SeqExtraParameter == 1)
-				Execute aboard + "Seq \"0\",\"" + chanstr + "\",1"
+				Execute aboard + "Seq \"0\",\"" + chanstr + "\""
+				// removed trailling,1 NYM Jan 26,2009
 			else
 	Execute aboard + "Seq \"0\",\"" + chanstr + "\""
 			endif
@@ -1761,7 +1765,6 @@ End // ITCSetDAC
 //****************************************************************
 //****************************************************************
 //****************************************************************
-
 
 
 
