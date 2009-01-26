@@ -665,7 +665,7 @@ Function ITCAcqLong(mode, savewhen)
 	
 	Variable tGainConfig = NumVarOrDefault(cdf+"TGainConfig", 0)
 	
-	Variable ITC18_SeqExtraParameter = NumVarOrDefault(cdf+"ITC18_SeqExtraParameter", 1)
+	Variable ITC18_SeqExtraParameter = NumVarOrDefault(cdf+"ITC18_SeqExtraParameter", 0)
 	Variable ITC_ResetDuringAcquisition = NumVarOrDefault(cdf+"ITC_ResetDuringAcquisition", 0)
 	Variable ITC_SetRange = NumVarOrDefault(cdf+"ITC_SetRange", 0)
 	
