@@ -663,6 +663,11 @@ End // MetricValue
 //	measure resistance and capacitence of cell membrane
 //
 //****************************************************************
+// This function modified by NYM Jan 27, 2009	
+// Added curve fit method from GJ's TestPulse TPFitTransient() function
+// suitably modified to use input + output waves from nclamp
+// This curvefit integrates area under the test pulse response rather than 
+// using height of transient to calculate Ra, Rm, Cm
 
 Function RCstep(mode)
 	Variable mode // (-1) kill (0) run (1) config (2) init
@@ -670,8 +675,8 @@ Function RCstep(mode)
 	//Variable toffset = 0.02 // time after step to start curve fit
 	
 	Variable fbgn, fend
-	Variable chan, base, vstep, input, tbase, tscale = 1, negstep = 0
-	Variable Ipeak, Iss, tau, Rp, Rm, Cm
+	Variable chan, base, vstep, input, tbase, pulseLastFifthStart, tscale = 1, negstep = 0
+	Variable Ipeak, Iss, Rm
 	
 	String outName, inName, inName2, gname
 	String cdf = ClampDF(), sdf = StimDF()
@@ -710,6 +715,7 @@ Function RCstep(mode)
 	String ADClist = StimBoardOnList("", "ADC")
 	String board = StrVarOrDefault(cdf+"AcqBoard", "")
 	
+	
 	if (numtype(ADCconfig*DACconfig*tbgn*tend*scale) > 0)
 		return 0 // bad parameters
 	endif
@@ -739,28 +745,16 @@ Function RCstep(mode)
 		return -1
 	endif
 	
+	// Measure the size of the output voltage step from the command wave that is sent to the DAC
 	tbase = tbgn - 0.5
-	
-	WaveStats /Q/R=(0, tbase*tscale) $outName // baseline
-	
+	WaveStats /Q/R=(0, tbase*tscale) $outName // baseline	
 	base = V_avg // should be zero
-	
 	WaveStats /Q/R=(tbgn*tscale, tend*tscale) $outName
+	vstep = V_avg - base
 	
-	vstep = abs(V_avg - base)
-	
-	if (V_avg < base)
-		negstep = 1
-	endif
-	
-	WaveStats /Q/R=(tbgn*tscale, tend*tscale) $inName
-	
-	//if (negstep == 1)
-	//	fbgn = V_minloc + toffset
-	//else
-	//	fbgn = V_maxloc + toffset
-	//endif
-	
+	// The input wave containing Im
+	Wave wtemp = $ChanDisplayWave(chan)
+
 	fbgn = tbgn //+ toffset
 	fend = tend
 	
@@ -776,42 +770,45 @@ Function RCstep(mode)
 		Cursor /W=$gName A, $inName2, fbgn
 		Cursor /W=$gName B, $inName2, fend
 	endif
-	
-	Wave wtemp = $ChanDisplayWave(chan)
-	
-	WaveStats /Q/R=(0, tbase) wtemp // baseline
-	
-	base = V_avg
-	
-	if (WaveExists(RCparams) == 0)
-		Make /N=4 RCparams
-	endif
-	
-	Wave RCparams
-	
-	RCparams[0] = tbgn
-	RCparams[1] = V_avg
-	RCparams[3] = (fend - fbgn)  / 4
-	
-	if (negstep == 1)
-		RCparams[2] = V_min // probably a negative transient
+
+	// NYM This is where the guts of the new curve fitting begins
+	pulseLastFifthStart=tscale*(tbgn+4/5*(tend-tbgn))
+
+	Variable V_fitOptions = 4	// suppress progress window
+	Variable V_FitError = 0	// prevent abort on error
+	CurveFit /N /Q exp_XOffset  wtemp(tbgn+.1,tend) /D 
+	WAVE W_coef
+	if (V_FitError == 0)
+		Variable Q,tau,Cm,Ra;
+		Variable FunkyQ,FunkyCm;  // Funky because we don't know what units they are in
+		
+		tau=W_coef[2]  // a time constant in ms
+		// Assume that the last 1/5 of pulse just corresponds to Rm step
+	      FunkyQ=area(wtemp,tbgn*tscale,tend*tscale)- area(wtemp,pulseLastFifthStart,tend*tscale)*5
+	      // to convert Q to C, divide by 1000 (ms->s) 
+	      // and multiply  by scale to convert ?V to V
+	      
+		// NB TestPulseSize will be in mV, so convert to V
+		FunkyCm=FunkyQ/vstep
+		Ra=tau/FunkyCm*scale // a resistance in MOhms
+
+		// now find Cm in units that we can actually identify
+		// viz pF
+		Cm=(tau*1e-3/(Ra*1e6))*1e12
+		// Let's find the average current for last 5th (assuming decayed to baseline)
+		WaveStats /Q/R=(pulseLastFifthStart, tend*tscale) wtemp
+		// ie Total Resistance = voltage step / average baseline current * magic scale factor
+		// Rm = Total Resistance - Access Resistance
+	 	Rm= vstep/(V_avg-base)*scale-Ra
+	 
+		// printf "tau= %f ms; Cm = %g pF; Ra = %g MOhm; Rm = %g Mohm\r", tau,  Cm, Ra, Rm
+		// Don't actually know how to prevent the fitted wave from being added to graph
 	else
-		RCparams[2] = V_max // probably a positive transient
+		print "Fitting error!"
 	endif
-	
-	FuncFit /Q/W=0/H="1000"/N RCfit RCparams wtemp(fbgn, fend) /D
-	
-	// save results 
-	
-	Ipeak = abs(RCparams[1] + RCparams[2] - base)
-	Iss = abs(RCparams[1] - base)
-	tau = 1 / RCparams[3]
-	
-	Rp = Vstep * scale / Ipeak // recording pipette
-	Rm = (Vstep * scale / Iss) - Rp // membrane resistance
-	Cm = (tau / 0.001) * ( 1 / Rp + 1 / Rm) // membrane cap
-	
-	CT_Rp[CurrentWave] = Rp
+			
+	// Set resistances in MOhm, capacitances in pF
+	CT_Rp[CurrentWave] = Ra
 	CT_Rm[CurrentWave] = Rm
 	CT_Cm[CurrentWave] = Cm
 	
@@ -820,7 +817,7 @@ Function RCstep(mode)
 		//Print "Ipeak = " + num2str(Ipeak)
 		//Print "Iss = " + num2str(Iss)
 		//Print "Tau = " + num2str(tau)
-		Print "Rp = " + num2str(Rp)
+		Print "Rp = " + num2str(Ra)
 		Print "Rm = " + num2str(Rm)
 		Print "Cm = " + num2str(Cm)
 	elseif (dsply == 2)
