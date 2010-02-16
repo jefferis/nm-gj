@@ -401,6 +401,11 @@ Function SingleAcq()
 //	I2=mean(testpulsein,pnt2x(testpulsein,1.5*numpnts(testpulsein)/4),pnt2x(testpulsein,2.5*numpnts(testpulsein)/4))
 	X1=mean(testpulsein,0,pnt2x(testpulsein,1*numpnts(testpulsein)/4))
 	
+	X2=mean(testpulsein,pnt2x(testpulsein,2.2*numpnts(testpulsein)/4),pnt2x(testpulsein,2.9*numpnts(testpulsein)/4))
+//	I2=mean(testpulsein,pnt2x(testpulsein,1.5*numpnts(testpulsein)/4),pnt2x(testpulsein,2.5*numpnts(testpulsein)/4))
+	X1=mean(testpulsein,0,pnt2x(testpulsein,1*numpnts(testpulsein)/5))
+	//modified by Nick Sept 8, 2009
+	
 	if(stringmatch(ClampMode,"VC"))
 		resistance=lev/(X2-X1)/1e6
 	else
@@ -792,11 +797,14 @@ Function TPFitTransient ()
 
 	switch(numpnts(testpulsein))	// numeric switch
 		case 1000:		// execute if case matches expression
-			cfitStart=267;cfitEnd=749
+			cfitStart=260;cfitEnd=749
+			// nick trying to move over a bit
+			//cfitStart=253;cfitEnd=749;
 			pulseStart=2.5e-3 //ie 2.5 ms
 			break						// exit from switch
 		case 5000:		// execute if case matches expression
 			cfitStart=1267;cfitEnd=3749
+			//cfitStart=1255;cfitEnd=3749;
 			pulseStart=12.5e-3 //ie 12.5 ms
 			break
 		default:							// optional default expression executed
