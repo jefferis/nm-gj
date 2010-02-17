@@ -429,10 +429,14 @@ End // ClampFolderPrefix
 //****************************************************************
 
 Function /S ClampDateName()
-	String name = "", d = Date()
+	String name = "", d = ""
 	
 	Variable icnt
 	
+	String expr="([[:alpha:]]+), ([[:alpha:]]+) ([[:digit:]]+), ([[:digit:]]+)"
+	String dayOfWeek, monthName, dayNumStr, yearStr
+	SplitString/E=(expr) date(), dayOfWeek, monthName, dayNumStr, yearStr
+	d= yearStr+ ""+monthName+""+dayNumStr
 	for (icnt = 0; icnt < strlen(d); icnt += 1)
 		if ((StringMatch(d[icnt,icnt], " ") == 0) && (StringMatch(d[icnt,icnt], ".") == 0) && (StringMatch(d[icnt,icnt], ",") == 0))
 			name += d[icnt,icnt]
