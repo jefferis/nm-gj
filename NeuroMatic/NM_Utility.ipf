@@ -4832,12 +4832,12 @@ End // MatchStrList
 //
 //
 //****************************************************************
+// GJ Commented out because Igor 6.1.2 has IgorVersion()
+//Function IgorVersion()
 
-Function IgorVersion()
+//	return NumberByKey("IGORVERS", IgorInfo(0))
 
-	return NumberByKey("IGORVERS", IgorInfo(0))
-
-End // IgorVersion
+//End // IgorVersion
 
 //****************************************************************
 //
