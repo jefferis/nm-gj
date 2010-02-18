@@ -721,7 +721,7 @@ Window TestPulseGraph() : Graph
 	PopupMenu ClampMode,mode=3,popvalue="VC",value= "VC;IC", help={"Amplifier Mode - either Voltage Clamp or Current Clamp"}
 
 	PopupMenu Amplifier,pos={675,77},size={94,20},proc=AmplifierPop,title="Amplifier"
-	PopupMenu Amplifier,mode=3,popvalue="AM2400",value= "AM2400;Axoclamp;Multiclamp", help={"Choose the Amplifier"}
+	PopupMenu Amplifier,mode=3,popvalue="Multiclamp",value= "AM2400;Axoclamp;Multiclamp", help={"Choose the Amplifier"}
 
 	ValDisplay valdisp0,pos={175,13},size={151,24},title="R /M½",fSize=18
 	ValDisplay valdisp0,format="%07.2f",frame=2
