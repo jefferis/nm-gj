@@ -1625,10 +1625,12 @@ Function ITCmixWaves(mixwname, nmix, wlist, tlist, npnts, ipnts, mixflag, pipede
 				
 				Wavestats /Q tempwave
 				
-				tempwave /= V_max // normalize wave
-				tempwave *= 2^(chan) // set channel bit value
-				
-				TTLout += tempwave
+				// Only add values if this TTL out channel has valid data
+				if (V_max != 0 && numtype(V_max) != 2) // Numtype ==2 => nan
+					tempwave /= V_max // normalize wave
+					tempwave *= 2^(chan) // set channel bit value				
+					TTLout += tempwave
+				endif
 				
 			endfor
 			
