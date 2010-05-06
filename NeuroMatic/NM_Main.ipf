@@ -2513,6 +2513,14 @@ Function CallProgress(fraction)
 			// Note, if cancel is selected, V_Progress = 1
 		
 			win = "win=(" + num2str(xProgress) + "," + num2str(yProgress) + ")"
+
+			// It seems that ProgWin XOP cannot cope with a text string longer than 31 chars
+			// on MacOSX 10.5.8 with Igor 6 compatible XOP from Jason Rothman's website
+			// so truncate text to 31 chars
+			if (strlen(ProgressStr)>31)
+				ProgressStr=ProgressStr[0,30]
+			endif
+
 			txt = "text=\"" + ProgressStr + "\""
 		
 			if (fraction == -1)
