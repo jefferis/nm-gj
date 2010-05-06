@@ -4833,11 +4833,14 @@ End // MatchStrList
 //
 //****************************************************************
 
+#if NumberByKey("IGORVERS", IgorInfo(0)) < 6.1
+// Igor 6.1 has a built-in version of this function
 Function IgorVersion()
 
 	return NumberByKey("IGORVERS", IgorInfo(0))
 
 End // IgorVersion
+#endif
 
 //****************************************************************
 //
