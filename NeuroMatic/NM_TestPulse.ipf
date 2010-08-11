@@ -683,9 +683,13 @@ Window TestPulseGraph() : Graph
 	Button ResetButton,pos={65,14},size={45,20},proc=ButtonProc,title="reset"
 	Button FitButton,pos={115,14},size={45,20},proc=ButtonProc,title="Fit"
 
-	SetVariable AcqChannel,pos={200,44},size={90,15},title="ADC Channel"
+	SetVariable AcqChannel,pos={194,43},size={78,15},title="ADC Chan"
 	SetVariable AcqChannel,help={"Sets the channel from which the seal test response is read."}
 	SetVariable AcqChannel,limits={0,7,1},value= root:Packages:TestPulse:ADCChannel
+
+	SetVariable StimChannelCtl,pos={272,44},size={78,15},title="DAC Chan"
+	SetVariable StimChannelCtl,help={"Sets the DAC channel to which the test pulse is sent"}
+	SetVariable StimChannelCtl,limits={0,7,1},value= root:Packages:TestPulse:DACChannel
 
 	CheckBox GraphModeBox,pos={200,75},size={79,14},proc=ModePop,title="Fast Graphing"
 	CheckBox GraphModeBox,help={"When checked the graph uses a special fast mode - among other things it does not autoscale"}
