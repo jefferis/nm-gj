@@ -429,26 +429,26 @@ End // ClampFolderPrefix
 //****************************************************************
 
 Function /S ClampDateName()
-	String name = "", d = ""
-	
+	// In general it would be good to have more user flexiblity for this
+	// I would suggest either 
+	// a) checking for the existence of a user defined function that could replace this one
+	// or b) using the Calendar.xop to allow proper date format strings
+	String name = ""
+	String d = Secs2Date(DateTime,-2," ") // This is ALWAYS ISO date order separated by spaces i.e. 2010 06 21
+
+	// Now remove any invalid characters (spaeces, commas, periods)
 	Variable icnt
-	
-	String expr="([[:alpha:]]+), ([[:alpha:]]+) ([[:digit:]]+), ([[:digit:]]+)"
-	String dayOfWeek, monthName, dayNumStr, yearStr
-	SplitString/E=(expr) date(), dayOfWeek, monthName, dayNumStr, yearStr
-	d= yearStr+ ""+monthName+""+dayNumStr
 	for (icnt = 0; icnt < strlen(d); icnt += 1)
 		if ((StringMatch(d[icnt,icnt], " ") == 0) && (StringMatch(d[icnt,icnt], ".") == 0) && (StringMatch(d[icnt,icnt], ",") == 0))
 			name += d[icnt,icnt]
 		endif
 	endfor
 	
-	icnt = strsearch(name, "200", 0) // look for year 200x
-	
 	if (icnt >= 0)
 		name = name[0,icnt-1] + name[icnt+2,inf] // abbreviate
 	endif
 
+	// add prefix nm if begins with a number (since waves/folders can't start with a number)
 	if (numtype(str2num(name[0,0])) == 0)
 		name = StrVarOrDefault(NMDF()+"FolderPrefix", "nm") + name
 	endif
