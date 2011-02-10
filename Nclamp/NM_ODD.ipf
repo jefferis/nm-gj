@@ -59,17 +59,14 @@ End // NCOddRun
 Function NCOddRunConfig()
 	String cdf = ClampDF()
 	
+	Variable refNum
 	String configfile = StrVarOrDefault(cdf+"ConfigFile", "")
+	Open /D /R /M="Please choose an ODD config file" refNum
+
+	configfile = S_fileName
+
 	String logfile = StrVarOrDefault(cdf+"LogFile", "")
-	
-	Prompt configfile, "enter name of ODD config file"
-	Prompt logfile, "enter name of ODD log file"
-	DoPrompt "Configure oddRun", configfile, logfile
-	
-	if (V_flag == 1)
-		return 0 // cancel
-	endif
-	
+
 	SetNMstr(cdf+"ConfigFile",configfile)
 	SetNMstr(cdf+"LogFile", logfile)
 
