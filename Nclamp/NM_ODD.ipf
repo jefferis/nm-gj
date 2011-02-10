@@ -12,6 +12,11 @@
 // The main goal of this support code is to provide a wrapper so that NClamp
 // can used to configure and call oddRun
 
+// Dependencies: 
+// * Requires the XOP providing the oddRun() function
+// * HFSAndPosix.xop (distributed with Igor, must be moved to Igor Extensions)
+
+
 //****************************************************************
 //
 //	NCOddRun()
@@ -47,13 +52,24 @@ Function NCOddRun(mode)
 	endswitch
 	
 	String configfile = StrVarOrDefault(cdf+"ODDConfigFile", "")
-	String logfile = SpecialDirPath("Temporary",0, 0, 0)+"oddlog.txt"
+	String tempdir = SpecialDirPath("Temporary",0, 0, 0)
+	String logfile = tempdir +"oddlog.txt"
 	SetNMstr(cdf+"ODDLogFile", logfile)
 
 	NMHistory("ODD Config: " + configfile)
 	NMHistory("ODD Log: " + logfile)
 	
-	// TODO: oddRun()
+	String posixLogFile = HFSToPosix("",tempdir,1,1)+"oddlog.txt"
+	String posixConfigFile = HFSToPosix("",configfile,1,1)
+	if (cmpstr(posixConfigFile,"") == 0)
+		NMHistory("Missing config file: "+posixConfigFile)
+		return 0
+	elseif (cmpstr(posixLogFile,"oddlog.txt") == 0)
+		NMHistory("Missing log file: "+posixLogFile)
+		return 0
+	endif
+	
+	// TODO: oddRun(posixConfigFile,posixLogFile)
     // NotesFileVar("F_Temp", telValue)
 	
 End // NCOddRun
