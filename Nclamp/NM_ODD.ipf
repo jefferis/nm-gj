@@ -23,7 +23,6 @@
 Function NCOddRun(mode)
 	Variable mode // (-1) kill (0) run (1) config (2) init
 	
-	Variable telValue
 	String cdf = ClampDF()
 	
 	switch(mode)
