@@ -24,6 +24,7 @@ Function NCOddRun(mode)
 	Variable mode // (-1) kill (0) run (1) config (2) init
 	
 	String cdf = ClampDF()
+	String sdf = CheckStimDF(sdf)
 	
 	switch(mode)
 	
@@ -35,7 +36,11 @@ Function NCOddRun(mode)
 			break
 	
 		case 2:
+			StimFxnListAdd(sdf, "Post", "NCOddPostRun")
+			return 0
 		case -1:
+			StimFxnListRemove(sdf, "Post", "NCOddPostRun")
+			return 0
 		default:
 			return 0
 			
