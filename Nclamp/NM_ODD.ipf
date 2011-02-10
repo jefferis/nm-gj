@@ -48,6 +48,7 @@ Function NCOddRun(mode)
 	NMHistory("ODD Config: " + configfile)
 	NMHistory("ODD Log: " + logfile)
 	
+	// TODO: oddRun()
     // NotesFileVar("F_Temp", telValue)
 	
 End // NCOddRun
@@ -68,3 +69,46 @@ Function NCOddRunConfig()
 	SetNMstr(cdf+"ODDConfigFile",configfile)
 
 End // NCOddRunConfig
+
+//****************************************************************
+//
+//	NCOddPostRun()
+//	A function that will be run at the end of a sweep using the ODD
+//	Its main purpose will be to copy the ODD config/log files into 
+//	the data save directory 
+//
+//****************************************************************
+
+Function NCOddPostRun(mode)
+	Variable mode // (-1) kill (0) run (1) config (2) init
+	
+	String cdf = ClampDF()
+	
+	switch(mode)
+	
+		case 0:
+			break
+	
+		case 1:
+		case 2:
+		case -1:
+		default:
+			return 0
+			
+	endswitch
+	
+	String configfile = StrVarOrDefault(cdf+"ODDConfigFile", "")
+	String logfile = StrVarOrDefault(cdf+"ODDLogFile","")
+	String datadir = StrVarOrDefault(cdf+"ClampSubPath","")
+	String datafile = datadir + StrVarOrDefault(ClampDF()+"CurrentFolder","")
+	
+	String savedlogfile = datafile + "_oddlog.txt"
+	String savedconfigfile = datafile + "_odd.txt"
+	
+	NMHistory("ODD: Moving log file: " + logfile + " to: "+savedlogfile)
+	NMHistory("ODD: Saving odd config file: " + configfile + " to: "+savedconfigfile)
+	// TODO: Don't do any of this saving if we did a preview.
+	//       Is there any way that we can actually tell that?
+	// TODO: Actually move/copy the files
+	
+End // NCOddPostRun
