@@ -24,7 +24,7 @@ Function NCOddRun(mode)
 	Variable mode // (-1) kill (0) run (1) config (2) init
 	
 	String cdf = ClampDF()
-	String sdf = CheckStimDF(sdf)
+	String sdf = CheckStimDF("")
 	
 	switch(mode)
 	
