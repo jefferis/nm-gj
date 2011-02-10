@@ -44,7 +44,7 @@ End // NMPanelTabY
 
 Function NMPanelWidth()
 	
-	return 300
+	return 400
 	
 End // NMPanelWidth
 
