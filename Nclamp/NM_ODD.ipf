@@ -41,9 +41,10 @@ Function NCOddRun(mode)
 			
 	endswitch
 	
-	String configfile = StrVarOrDefault(cdf+"ConfigFile", "")
-	String logfile = StrVarOrDefault(cdf+"LogFile", "")
-			
+	String configfile = StrVarOrDefault(cdf+"ODDConfigFile", "")
+	String logfile = SpecialDirPath("Temporary",0, 0, 0)+"oddlog.txt"
+	SetNMstr(cdf+"ODDLogFile", logfile)
+
 	NMHistory("ODD Config: " + configfile)
 	NMHistory("ODD Log: " + logfile)
 	
@@ -59,14 +60,11 @@ Function NCOddRunConfig()
 	String cdf = ClampDF()
 	
 	Variable refNum
-	String configfile = StrVarOrDefault(cdf+"ConfigFile", "")
+	String configfile = StrVarOrDefault(cdf+"ODDConfigFile", "")
 	Open /D /R /M="Please choose an ODD config file" refNum
 
 	configfile = S_fileName
 
-	String logfile = StrVarOrDefault(cdf+"LogFile", "")
-
-	SetNMstr(cdf+"ConfigFile",configfile)
-	SetNMstr(cdf+"LogFile", logfile)
+	SetNMstr(cdf+"ODDConfigFile",configfile)
 
 End // NCOddRunConfig
