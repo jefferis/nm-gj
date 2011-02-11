@@ -38,7 +38,7 @@ Function NCOddRun(mode)
 	
 		case 1:
 			NCOddRunConfig()
-			break
+			return 0
 	
 		case 2:
 			StimFxnListAdd(sdf, "Post", "NCOddPostRun")
@@ -60,8 +60,7 @@ Function NCOddRun(mode)
 	String logfile = tempdir +"oddlog.txt"
 	SetNMstr(cdf+"ODDLogFile", logfile)
 
-	NMHistory("ODD Config: " + configfile)
-	NMHistory("ODD Log: " + logfile)
+//	NMHistory("ODD Log: " + logfile)
 
 	// Find the POSIX path to the config and log files
 	// This is needed because the XOP expects system paths but Igor
@@ -104,6 +103,7 @@ Function NCOddRunConfig()
 	configfile = S_fileName
 
 	SetNMstr(cdf+"ODDConfigFile",configfile)
+	NMHistory("ODD Config: " + configfile)
 
 End // NCOddRunConfig
 
