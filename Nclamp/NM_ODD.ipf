@@ -77,7 +77,15 @@ Function NCOddRun(mode)
 		return 0
 	endif
 	
-	// TODO: oddRun(posixConfigFile,posixLogFile)
+	#if Exists("oddRun")
+		try
+			oddRun(posixConfigFile,posixLogFile)
+		catch
+			print "Abort code= ", V_AbortCode
+		endtry
+	#else
+		NMHistory("ODD ERROR: XOP missing!")
+	#endif
     NotesFileStr("F_ODDConfig", configfile)
 	
 End // NCOddRun
@@ -136,9 +144,19 @@ Function NCOddPostRun(mode)
 	
 	if(NumVarOrDefault("CT_RecordMode", -1) > 0)
 		// We are actually recording so save log files
-		NMHistory("ODD: Moving log file: " + logfile + " to: "+savedlogfile)
-		NMHistory("ODD: Saving odd config file: " + configfile + " to: "+savedconfigfile)
-		// TODO: Actually move/copy the files
+		MoveFile /Z logfile as savedlogfile
+		if(V_flag==0)
+			NMHistory("ODD: Moving log file: " + logfile + " to: "+savedlogfile)
+		else
+			NMHistory("ODD ERROR:, unable to move log file: " + logfile + " to: "+savedlogfile)
+		endif
+
+		CopyFile /Z configfile as savedconfigfile
+		if(V_flag==0)
+			NMHistory("ODD: Saving odd config file: " + configfile + " to: "+savedconfigfile)
+		else
+			NMHistory("ODD ERROR:, unable to save config file: " + configfile + " to: "+savedconfigfile)
+		endif
 	else
 		NMHistory("ODD: Preview mode, so skipping log file save")
 	endif
