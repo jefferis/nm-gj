@@ -62,7 +62,11 @@ Function NCOddRun(mode)
 
 	NMHistory("ODD Config: " + configfile)
 	NMHistory("ODD Log: " + logfile)
-	
+
+	// Find the POSIX path to the config and log files
+	// This is needed because the XOP expects system paths but Igor
+	// uses old style HFS paths internally.  It would be possible to change
+	// the XOP to handle Igor style HFS paths.
 	String posixLogFile = HFSToPosix("",tempdir,1,1)+"oddlog.txt"
 	String posixConfigFile = HFSToPosix("",configfile,1,1)
 	if (cmpstr(posixConfigFile,"") == 0)
