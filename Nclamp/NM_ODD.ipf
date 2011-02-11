@@ -130,10 +130,12 @@ Function NCOddPostRun(mode)
 	String savedlogfile = datafile + "_oddlog.txt"
 	String savedconfigfile = datafile + "_odd.txt"
 	
-	NMHistory("ODD: Moving log file: " + logfile + " to: "+savedlogfile)
-	NMHistory("ODD: Saving odd config file: " + configfile + " to: "+savedconfigfile)
-	// TODO: Don't do any of this saving if we did a preview.
-	//       Is there any way that we can actually tell that?
-	// TODO: Actually move/copy the files
-	
+	if(NumVarOrDefault("CT_RecordMode", -1) > 0)
+		// We are actually recording so save log files
+		NMHistory("ODD: Moving log file: " + logfile + " to: "+savedlogfile)
+		NMHistory("ODD: Saving odd config file: " + configfile + " to: "+savedconfigfile)
+		// TODO: Actually move/copy the files
+	else
+		NMHistory("ODD: Preview mode, so skipping log file save")
+	endif
 End // NCOddPostRun
