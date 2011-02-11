@@ -74,7 +74,7 @@ Function NCOddRun(mode)
 	endif
 	
 	// TODO: oddRun(posixConfigFile,posixLogFile)
-    // NotesFileVar("F_Temp", telValue)
+    NotesFileStr("F_ODDConfig", configfile)
 	
 End // NCOddRun
 
