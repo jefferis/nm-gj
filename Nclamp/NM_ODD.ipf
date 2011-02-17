@@ -54,6 +54,7 @@ Function NCOddRun(mode)
 	String configfile = StrVarOrDefault(cdf+"ODDConfigFile", "")
 	if(cmpstr(configfile,"")==0)
 		NCOddRunConfig() // If we haven't got a config file set, then ask for one
+		configfile = StrVarOrDefault(cdf+"ODDConfigFile", "") // and set the local variable
 	endif
 	
 	String tempdir = SpecialDirPath("Temporary",0, 0, 0)
