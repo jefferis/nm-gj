@@ -141,7 +141,7 @@ Function NCOddPostRun(mode)
 	String datafile = datadir + StrVarOrDefault(ClampDF()+"CurrentFolder","")
 	
 	String savedlogfile = datafile + "_oddlog.txt"
-	String savedconfigfile = datafile + "_odd.txt"
+	String savedconfigfile = datafile + "_odd_" + ParseFilePath(0, configfile, ":", 1, 0)
 	
 	if(NumVarOrDefault("CT_RecordMode", -1) > 0)
 		// We are actually recording so save log files
