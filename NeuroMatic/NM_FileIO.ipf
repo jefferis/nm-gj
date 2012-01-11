@@ -701,10 +701,11 @@ Function /S FileBinOpenAll(dialogue, df, pathName)
 		file = StringFromList(icnt, slist)
 		
 		if (StringMatch(file, fname) == 1)
-			add = 1
+			add = 1 // Set flag to start loading all subsequent files in list
 		endif
 		
-		if (add == 1)
+		if (add == 1 && StringMatch(file, "*.pxp") == 1)
+			// Only add files to list for loading if they end in pxp
 			olist = AddListItem(file, olist, ";", inf)
 		endif
 		
