@@ -33,8 +33,13 @@ Function SaveSpikes()
 	Save/G/W SP_RX_RAll_A0,SP_RY_RAll_A0 as spikefilename
 End
 
+Function HelpSpikes()
+	BrowseUrl("http://flybrain.mrc-lmb.cam.ac.uk/dokuwiki/doku.php?id=protocols:analysing_spikes#Automating_Spike_Finding")
+End
+
 Menu "Macros"
 "Setup Spikes", SetupSpikes()
 "Save Spikes", SaveSpikes()
 "Run Spikes Auto", RunSpikesAuto()
+"Spikes Help", HelpSpikes()
 End
